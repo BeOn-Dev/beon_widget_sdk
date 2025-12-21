@@ -30,7 +30,7 @@ class ExampleHomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BeonChatWidget(
       config: BeonConfig(
-        // Replace with your actual API key from https://beon.chat
+        // Replace with your actual API key from https://app.beon.chat
         apiKey: 'YOUR_API_KEY_HERE',
 
         // Optional: Override settings from API
