@@ -1,3 +1,4 @@
+import 'package:beon_widget_sdk/beon_widget_sdk.dart';
 import 'package:flutter/material.dart';
 
 void main() {
