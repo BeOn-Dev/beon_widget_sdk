@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.1] - 2025-12-22
+
+### Fixed
+- Disabled console logging in production build
+- Removed debug output from API calls and WebSocket events
+
 ## [1.0.0] - 2025-12-16
 
 ### Added

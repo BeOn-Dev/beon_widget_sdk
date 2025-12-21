@@ -11,7 +11,11 @@ class AppFunctions {
   /// Translates text using EasyLocalization with fallback safety
   /// Returns untranslated text if context is invalid or translation fails
 
-  static logPrint({required String message}) => log(message);
+  // Disabled in production - uncomment for debugging
+  // static logPrint({required String message}) => log(message);
+  static void logPrint({required String message}) {
+    // No-op in production to avoid console logs
+  }
   static MessageStatus getMessageStatus({required String status}) {
     switch (status) {
       case 'sending':

@@ -20,14 +20,14 @@ class BeonApiClient {
         },
       ),
     );
-    _dio.interceptors.add(PrettyDioLogger(
-        requestHeader: true,
-        requestBody: true,
-        responseBody: true,
-        responseHeader: false,
-        error: true,
-        compact: true,
-        maxWidth: 90));
+    // _dio.interceptors.add(PrettyDioLogger(
+    //     requestHeader: true,
+    //     requestBody: true,
+    //     responseBody: true,
+    //     responseHeader: false,
+    //     error: true,
+    //     compact: true,
+    //     maxWidth: 90));
     _dio.interceptors.addAll([
       _AuthInterceptor(config.apiKey, () => _visitorId),
       // _LoggingInterceptor(),

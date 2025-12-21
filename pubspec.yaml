@@ -1,8 +1,8 @@
 name: beon_widget_sdk
 description: "A fully-featured, customizable chat widget SDK for Flutter with real-time messaging support."
-version: 1.0.0
+version: 1.0.1
 homepage: https://beon.chat
-repository: https://github.com/beon-chat/beon_widget_sdk
+repository: https://github.com/unlimited-software-house/beon_widget_sdk.git
 
 environment:
   sdk: ^3.8.1
