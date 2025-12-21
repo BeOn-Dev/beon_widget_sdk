@@ -36,13 +36,13 @@ class ExampleHomePage extends StatelessWidget {
         // Optional: Override settings from API
         primaryColor: Colors.indigo,
         position: BeonPosition.bottomRight,
-
+fullScreen: true,
         // Customize header
         headerTitle: 'Support Chat',
         headerSubtitle: 'We typically reply within minutes',
 
         // Enable/disable features
-        enableSounds: true,
+
         // enablePollingFallback: false, // Disabled by default
       ),
     );
