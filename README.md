@@ -1,1 +1,0 @@
-# beon_widget_sdk
