@@ -2,9 +2,7 @@
 
 import 'package:flutter/cupertino.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:developer';
-import 'package:intl/src/intl/date_format.dart';
-import '../../../beon_widget_sdk.dart';
+import 'package:intl/intl.dart';
 import '../../models/message.dart';
 
 class AppFunctions {

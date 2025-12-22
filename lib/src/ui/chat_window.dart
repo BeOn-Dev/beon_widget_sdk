@@ -110,8 +110,6 @@ class _ChatWindowState extends ConsumerState<ChatWindow> {
   }
 
   Widget _buildMessageArea(ChatState chatState) {
-    final theme = ref.watch(themeProvider);
-
     if (chatState.isLoading && chatState.messages.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(),
@@ -264,25 +262,6 @@ class _ChatWindowState extends ConsumerState<ChatWindow> {
 
     if (currentDate == null || nextDate == null) return false;
     return !_isSameDay(currentDate, nextDate);
-  }
-
-  bool _shouldShowAvatar(List<Message> messages, int index) {
-    if (index == 0) return true;
-
-    final current = messages[index];
-    final previous = messages[index - 1];
-
-    final currentIsFromVisitor = current.messageType == MessageType.myMessage;
-    final previousIsFromVisitor = previous.messageType == MessageType.myMessage;
-
-    // Show avatar if sender changed or significant time gap
-    if (currentIsFromVisitor != previousIsFromVisitor) return true;
-
-    final currentDate = _parseDate(current.createdAt);
-    final previousDate = _parseDate(previous.createdAt);
-    if (currentDate == null || previousDate == null) return true;
-
-    return currentDate.difference(previousDate).inMinutes.abs() > 5;
   }
 
   DateTime? _parseDate(String? dateStr) {

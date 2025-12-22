@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.2] - 2025-12-22
+
+### Changed
+- Updated repository URL to new location
+
 ## [1.0.1] - 2025-12-22
 
 ### Fixed

@@ -9,11 +9,6 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../utils/app_functions/app_functions.dart';
 
 abstract class ReverbService {
-  Future<String?> _authenticate(String socketId, String channelName);
-
-  void _subscribe(String channelName, String? broadcastAuthToken,
-      {bool isPrivate = false});
-
   void listen(void Function(dynamic) onData, String channelName,
       {bool isPrivate = false});
 
@@ -52,7 +47,6 @@ class SimpleFlutterReverb implements ReverbService {
     return '${options.scheme}://${options.host}:${options.port}/app/${options.appKey}';
   }
 
-  @override
   void _subscribe(String channelName, String? broadcastAuthToken,
       {bool isPrivate = false}) {
     try {
@@ -160,7 +154,6 @@ class SimpleFlutterReverb implements ReverbService {
     }
   }
 
-  @override
   Future<String?> _authenticate(String socketId, String channelName) async {
     try {
       if (options.authToken == null) {

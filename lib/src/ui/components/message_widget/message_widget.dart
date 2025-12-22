@@ -132,7 +132,6 @@ class MessageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     bool isLocal = (message.id ?? 0) < 0;
-    bool isMyMessage=message.messageType==MessageType.myMessage;
     switch (message.type) {
       case SendMessageType.text:
       case SendMessageType.note:
@@ -228,19 +227,7 @@ class MessageContent extends StatelessWidget {
           ),
           maxLines: 10000000,
 
-        );;
-    }
-  }
-
-  Future<void> _launchUrl(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri != null) {
-      try {
-        // Use url_launcher
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } catch (e) {
-        AppFunctions.logPrint(message: "Error launching URL: $e");
-      }
+        );
     }
   }
 }

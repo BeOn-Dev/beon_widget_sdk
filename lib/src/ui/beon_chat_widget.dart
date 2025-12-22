@@ -1,5 +1,3 @@
-import 'package:beon_widget_sdk/src/utils/app_colors.dart';
-import 'package:beon_widget_sdk/src/utils/app_functions/app_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/beon_config.dart';
