@@ -16,7 +16,6 @@
 ///
 /// The widget fetches configuration from the API using your API key,
 /// including channel settings, pre-chat form fields, colors, and position.
-library beon_widget_sdk;
 
 // Core widget
 export 'src/ui/beon_chat_widget.dart' show BeonChatWidget;

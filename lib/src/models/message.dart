@@ -239,7 +239,6 @@ class ReactModel {
         : null;
   }
 
-  @override
   List<Object> get props => [
     id??0,
     emoji??"",
@@ -302,8 +301,6 @@ class LibraryModel  {
       "replay": {"body": replyMessage?.body, "replay_id": replyMessage?.id}
   };
 
-  @override
-  // TODO: implement props
   List<Object?> get props => [
     id,
     name,

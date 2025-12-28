@@ -1,7 +1,6 @@
 import 'package:beon_widget_sdk/src/ui/components/message_widget/widget/date_time_message_widget/date_time_message_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../models/message.dart';
 import '../../../utils/app_functions/app_functions.dart';

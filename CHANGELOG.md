@@ -1,6 +1,16 @@
 # Changelog
 
+## [1.0.4] - 2025-12-28
+
+### Fixed
+- Remove incorrect @override annotations from ReactModel and LibraryModel
+- Remove unused url_launcher import
+- Remove unnecessary library name declaration
+
 ## [1.0.3] - 2025-12-28
+
+### Added
+- API error logging interceptor for debugging failed requests
 
 ### Fixed
 - Fix dart analyze warning for Message class immutability (make fields final)
