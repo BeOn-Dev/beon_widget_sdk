@@ -55,29 +55,28 @@ enum MessageType {
 /// Represents a chat message
 @immutable
 class Message {
-  int? id;
-  String? uId;
-  int? conversationId;
+  final int? id;
+  final String? uId;
+  final int? conversationId;
+  final String? body;
+  final String? localPath;
+  final String? status;
+  final SendMessageType? type;
+  final MessageType? messageType;
+  final String? messageId;
+  final String? createdAt;
+  final int? channelId;
+  final String? agentName;
+  final MessageStatus? messageStatus;
+  final ReactModel? react;
+  final double? longitude;
+  final double? latitude;
+  final Message? replay;
+  final DocumentFileType? documentFileType;
+  final bool? isSendingError;
+  final LibraryModel? libraryModel;
 
-  String? body;
-  String? localPath;
-  String? status;
-  SendMessageType? type;
-  MessageType? messageType;
-  String? messageId;
-  String? createdAt;
-  int? channelId;
-  String? agentName;
-  MessageStatus? messageStatus;
-  ReactModel? react;
-  double? longitude;
-  double? latitude;
-  Message? replay;
-  DocumentFileType? documentFileType;
-  bool? isSendingError;
-  LibraryModel? libraryModel;
-
-  Message({
+  const Message({
     this.id,
     this.body,
     this.status,
@@ -100,48 +99,51 @@ class Message {
     this.libraryModel,
   });
 
-  Message.fromJson(Map<String, dynamic> json) {
-    id = json['id'];
+  factory Message.fromJson(Map<String, dynamic> json) {
     // Sanitize body to prevent UTF-16 encoding errors
     // BUT don't sanitize URLs (audio/video/image/document) as it corrupts them
+    String? parsedBody;
     if (json['body'] != null) {
       final bodyStr = json['body'].toString();
       // Check if it's a URL - don't sanitize URLs
       if (bodyStr.startsWith('http://') || bodyStr.startsWith('https://')) {
-        body = bodyStr; // Keep URL intact
+        parsedBody = bodyStr; // Keep URL intact
       } else {
-        body = AppFunctions.sanitizeString(bodyStr); // Sanitize text only
+        parsedBody = AppFunctions.sanitizeString(bodyStr); // Sanitize text only
       }
-    } else {
-      body = null;
-    }
-    uId = json['uid']?.toString();
-    status = json['status']?.toString();
-    conversationId = json['conversation_id'] != null
-        ? int.parse(json['conversation_id'].toString())
-        : null;
-    type = json['type'] != null
-        ? AppFunctions.getSendMessageType(type: json['type'])
-        : null;
-
-    if (json['message_type'] != null) {
-      messageType = AppFunctions.getMessageType(messageType: json["message_type"]);
     }
 
-    messageId = json['message_id']?.toString();
-    createdAt = json['created_at']?.toString();
-    agentName = json['agent_name'] != null
-        ? AppFunctions.sanitizeString(json['agent_name'].toString())
-        : null;
-    longitude = json['long'] != null ? double.tryParse(json['long'].toString()) : null;
-    latitude = json['lat'] != null ? double.tryParse(json['lat'].toString()) : null;
-    messageStatus = json['status'] != null
-        ? AppFunctions.getMessageStatus(status: json['status'])
-        : null;
-
-    react = json['react'] != null ? ReactModel.fromJson(json['react']) : null;
-    replay =
-    json['replay'] != null ? Message.fromJson(json['replay']) : null;
+    return Message(
+      id: json['id'],
+      uId: json['uid']?.toString(),
+      body: parsedBody,
+      status: json['status']?.toString(),
+      conversationId: json['conversation_id'] != null
+          ? int.parse(json['conversation_id'].toString())
+          : null,
+      type: json['type'] != null
+          ? AppFunctions.getSendMessageType(type: json['type'])
+          : null,
+      messageType: json['message_type'] != null
+          ? AppFunctions.getMessageType(messageType: json['message_type'])
+          : null,
+      messageId: json['message_id']?.toString(),
+      createdAt: json['created_at']?.toString(),
+      agentName: json['agent_name'] != null
+          ? AppFunctions.sanitizeString(json['agent_name'].toString())
+          : null,
+      longitude: json['long'] != null
+          ? double.tryParse(json['long'].toString())
+          : null,
+      latitude: json['lat'] != null
+          ? double.tryParse(json['lat'].toString())
+          : null,
+      messageStatus: json['status'] != null
+          ? AppFunctions.getMessageStatus(status: json['status'])
+          : null,
+      react: json['react'] != null ? ReactModel.fromJson(json['react']) : null,
+      replay: json['replay'] != null ? Message.fromJson(json['replay']) : null,
+    );
   }
 
 

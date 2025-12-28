@@ -53,7 +53,7 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
         borderRadius: theme.windowBorderRadius,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -170,7 +170,7 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.primaryColor,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: theme.primaryColor.withOpacity(0.6),
+                disabledBackgroundColor: theme.primaryColor.withValues(alpha: 0.6),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

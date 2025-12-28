@@ -82,7 +82,7 @@ AppSpacing.verticalSpace(2),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.withOpacity(0.5)),
+                    border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black12,

@@ -248,7 +248,7 @@ class AudioPlayerState extends State<AudioPlayer>
                 padding: AppPadding.padding8(),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  color: AppColors.grey.withOpacity(0.3),
+                  color: AppColors.grey.withValues(alpha: 0.3),
                 ),
                 child: Row(
                   children: [

@@ -87,7 +87,7 @@ class _LauncherButtonState extends State<LauncherButton>
               // Main button
               Material(
                 elevation: 6,
-                shadowColor: widget.primaryColor.withOpacity(0.4),
+                shadowColor: widget.primaryColor.withValues(alpha: 0.4),
                 shape: const CircleBorder(),
                 color: widget.primaryColor,
                 child: InkWell(
@@ -152,7 +152,7 @@ class _UnreadBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
-            color: Colors.red.withOpacity(0.4),
+            color: Colors.red.withValues(alpha: 0.4),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),

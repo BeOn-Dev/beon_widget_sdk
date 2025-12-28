@@ -67,7 +67,7 @@ class _ChatWindowState extends ConsumerState<ChatWindow> {
         borderRadius: borderRadius,
         boxShadow: config.fullScreen ? null : [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -202,7 +202,7 @@ class _ChatWindowState extends ConsumerState<ChatWindow> {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: theme.primaryColor.withOpacity(0.1),
+                color: theme.primaryColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(

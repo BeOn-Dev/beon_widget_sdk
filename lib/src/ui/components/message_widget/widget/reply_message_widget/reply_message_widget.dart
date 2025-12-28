@@ -25,7 +25,7 @@ class ReplyMessageWidget extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.1),
+        color: Colors.grey.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
         border: const Border(
           left: BorderSide(color: AppColors.mainColor, width: 3),

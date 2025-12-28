@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../config/beon_config.dart';
+import '../utils/app_functions/app_functions.dart';
 
 /// HTTP client for Beon API communication
 class BeonApiClient {
@@ -29,7 +30,7 @@ class BeonApiClient {
     //     maxWidth: 90));
     _dio.interceptors.addAll([
       _AuthInterceptor(config.apiKey, () => _visitorId),
-      // _LoggingInterceptor(),
+      _ErrorLoggingInterceptor(),
       _RetryInterceptor(),
     ]);
   }
@@ -127,6 +128,28 @@ class _AuthInterceptor extends Interceptor {
     }
 
     handler.next(options);
+  }
+}
+
+/// Interceptor for logging errors only
+class _ErrorLoggingInterceptor extends Interceptor {
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final method = err.requestOptions.method;
+    final uri = err.requestOptions.uri;
+    final statusCode = err.response?.statusCode;
+    final errorType = err.type.name;
+    final responseData = err.response?.data;
+
+    AppFunctions.logPrint(
+      message: '❌ API ERROR [$method] $uri\n'
+          '   Status: $statusCode\n'
+          '   Type: $errorType\n'
+          '   Message: ${err.message}\n'
+          '   Response: $responseData',
+    );
+
+    handler.next(err);
   }
 }
 
