@@ -365,45 +365,47 @@ class _ChannelErrorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 360,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: const Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.error_outline, size: 48, color: Colors.red),
-          SizedBox(height: 16),
-          Text(
-            'Configuration Error',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+    return Center(
+      child: Container(
+        width: 360,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Invalid API key or channel not found.',
-            style: TextStyle(color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 4),
-          Text(
-            'Please contact support.',
-            style: TextStyle(color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Colors.red),
+            SizedBox(height: 16),
+            Text(
+              'Configuration Error',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Invalid API key or channel not found.',
+              style: TextStyle(color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Please contact support.',
+              style: TextStyle(color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -31,7 +31,7 @@ class ExampleHomePage extends StatelessWidget {
     return BeonChatWidget(
       config: BeonConfig(
         // Replace with your actual API key from https://app.beon.chat
-        apiKey: 'df73436fd31e7c4a42d187e049f746b5',
+        apiKey: 'your_api_key',
 
         // Optional: Override settings from API
         primaryColor: Colors.indigo,
