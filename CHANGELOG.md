@@ -2,6 +2,9 @@
 
 ## [1.0.4] - 2025-12-28
 
+### Added
+- Show error screen when channel validation fails (invalid API key or channel not found)
+
 ### Fixed
 - Remove incorrect @override annotations from ReactModel and LibraryModel
 - Remove unused url_launcher import

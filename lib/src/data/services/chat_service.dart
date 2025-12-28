@@ -266,16 +266,12 @@ class ChatService {
 
   /// Internal method to fetch channel config from API
   Future<ChannelConfig?> _fetchChannelConfigFromApi() async {
-    try {
-      final response =
-          await _apiClient.get('/channels/validate/${_config.apiKey}');
-      if (response.statusCode == 200 && response.data != null) {
-        return ChannelConfig.fromApiResponse(response.data);
-      }
-      return null;
-    } catch (e) {
-      return null;
+    final response =
+        await _apiClient.get('/channels/validate/${_config.apiKey}');
+    if (response.statusCode == 200 && response.data != null) {
+      return ChannelConfig.fromApiResponse(response.data);
     }
+    return null;
   }
 
   /// Validate widget configuration (legacy method)

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide WidgetState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/beon_config.dart';
 import '../config/beon_theme.dart';
@@ -127,12 +127,18 @@ class _BeonChatWidgetContentState
     final widgetState = ref.watch(widgetStateProvider);
     final visitorAsync = ref.watch(visitorProvider);
     final effectiveConfigAsync = ref.watch(effectiveConfigProvider);
+    final channelConfigAsync = ref.watch(channelConfigProvider);
 
     // Handle animation state
     if (widgetState.isOpen && !_animationController.isCompleted) {
       _animationController.forward();
     } else if (!widgetState.isOpen && !_animationController.isDismissed) {
       _animationController.reverse();
+    }
+
+    // Check for channel config error (invalid API key, channel not found, etc.)
+    if (channelConfigAsync.hasError) {
+      return _buildChannelErrorUI(widgetState);
     }
 
     // Get effective config (with API settings merged)
@@ -236,6 +242,54 @@ class _BeonChatWidgetContentState
     return config.position == BeonPosition.bottomRight ||
         config.position == BeonPosition.topRight;
   }
+
+  /// Build error UI when channel config fails to load
+  Widget _buildChannelErrorUI(WidgetState widgetState) {
+    // For fullscreen mode, show error in Scaffold
+    if (widget.config.fullScreen) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'Chat',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: widget.config.primaryColor,
+          elevation: 0,
+          centerTitle: true,
+        ),
+        body: const _ChannelErrorWidget(),
+      );
+    }
+
+    // For normal mode, show error in positioned container
+    return SizedBox.expand(
+      child: Stack(
+        children: [
+          if (widgetState.isOpen)
+            Positioned(
+              right: _isRightPositioned(widget.config) ? 16.0 : null,
+              left: _isRightPositioned(widget.config) ? null : 16.0,
+              bottom: 80.0,
+              child: const _ChannelErrorWidget(),
+            ),
+          Positioned(
+            right: _isRightPositioned(widget.config) ? 16.0 : null,
+            left: _isRightPositioned(widget.config) ? null : 16.0,
+            bottom: 16.0,
+            child: LauncherButton(
+              isOpen: widgetState.isOpen,
+              onPressed: () => ref.read(widgetStateProvider.notifier).toggle(),
+              primaryColor: widget.config.primaryColor,
+              unreadCount: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _LoadingWidget extends StatelessWidget {
@@ -299,6 +353,55 @@ class _ErrorWidget extends StatelessWidget {
           Text(
             'Please try again later',
             style: TextStyle(color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChannelErrorWidget extends StatelessWidget {
+  const _ChannelErrorWidget();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 360,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: Colors.red),
+          SizedBox(height: 16),
+          Text(
+            'Configuration Error',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Invalid API key or channel not found.',
+            style: TextStyle(color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Please contact support.',
+            style: TextStyle(color: Colors.grey),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
