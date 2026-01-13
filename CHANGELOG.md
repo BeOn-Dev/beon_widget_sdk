@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.6] - 2026-01-13
+
+### Added
+- In-app document viewer - clicking documents now opens DocumentViewerScreen instead of external app
+- Image attachment support - users can now send images in addition to documents
+- Bottom sheet attachment picker with Image/Document options
+- Full screen image viewer - tap on images to view in full screen
+- Image gallery saver permission for iOS (NSPhotoLibraryAddUsageDescription)
+
+### Changed
+- Attachment callback now includes message type (image or document)
+- File picker filters by type (images or all files based on selection)
+
+### Fixed
+- iOS crash when downloading/saving images to photo library
+
 ## [1.0.5+1] - 2025-12-28
 
 ### Added

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:toastification/toastification.dart';
 
-import '../../../../main.dart';
 import '../../utils/app_functions/app_functions.dart';
 
 class AppAlert {

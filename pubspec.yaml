@@ -1,6 +1,6 @@
 name: beon_widget_sdk
 description: "A fully-featured, customizable chat widget SDK for Flutter with real-time messaging support."
-version: 1.0.5+1
+version: 1.0.6
 homepage: https://beon.chat
 repository: https://github.com/BeOn-Dev/liveChat-Flutter-sdk
 
@@ -24,6 +24,7 @@ dependencies:
 
   # Local Storage
   shared_preferences: ^2.5.3
+  path_provider: ^2.1.5
 
   # Utilities
   uuid: ^4.5.1
