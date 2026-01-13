@@ -434,6 +434,12 @@ class _FullScreenChatBody extends ConsumerWidget {
           onSend: (content) {
             ref.read(chatStateProvider.notifier).sendMessage(content);
           },
+          onAttachment: (filePath,fileName,type){
+            ref.read(chatStateProvider.notifier).sendMessageWithAttachment(filePath: filePath, fileName: fileName,type: type);
+
+
+          },
+
           isSending: chatState.isSending,
           primaryColor: theme.primaryColor,
         ),

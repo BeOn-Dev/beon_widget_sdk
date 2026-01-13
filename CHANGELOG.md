@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.5] - 2025-12-28
+## [1.0.5+1] - 2025-12-28
 
 ### Added
 - Show error screen when channel validation fails (invalid API key or channel not found)

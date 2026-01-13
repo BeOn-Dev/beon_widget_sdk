@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 
+import '../../models/message.dart';
+
 /// Message input component with emoji picker and file attachment
 class MessageInput extends StatefulWidget {
   final Function(String content) onSend;
-  final Function(String filePath, String fileName)? onAttachment;
+  final Function(String filePath, String fileName, SendMessageType type)? onAttachment;
   final bool isSending;
   final Color primaryColor;
 
@@ -80,15 +82,45 @@ class _MessageInputState extends State<MessageInput> {
     );
   }
 
-  Future<void> _pickFile() async {
+  void _showAttachmentOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.image),
+              title: const Text('Image'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickFile(SendMessageType.image);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.insert_drive_file),
+              title: const Text('Document'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickFile(SendMessageType.document);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickFile(SendMessageType type) async {
     if (widget.onAttachment == null) return;
 
     try {
-      final result = await FilePicker.platform.pickFiles();
+      final fileType = type == SendMessageType.image ? FileType.image : FileType.any;
+      final result = await FilePicker.platform.pickFiles(type: fileType);
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
         if (file.path != null) {
-          widget.onAttachment!(file.path!, file.name);
+          widget.onAttachment!(file.path!, file.name, type);
         }
       }
     } catch (e) {
@@ -124,7 +156,7 @@ class _MessageInputState extends State<MessageInput> {
               if (widget.onAttachment != null)
                 _buildIconButton(
                   icon: Icons.attach_file,
-                  onTap: _pickFile,
+                  onTap: _showAttachmentOptions,
                 ),
 
               const SizedBox(width: 8),

@@ -89,7 +89,8 @@ class ChatService {
     }
 
     final payload = {
-      'message': content,
+      'content': content,
+      'type':'text',
       'id': conversationUid, // Use same ID for all messages in conversation
       'token': _config.apiKey,
       'metadata': metadata.toJson(),
@@ -153,6 +154,7 @@ class ChatService {
   Future<Message> sendMessageWithAttachment({
     required String filePath,
     required String fileName,
+    required SendMessageType type,
     String? content,
   }) async {
     final metadata = _getMetadata();
@@ -168,13 +170,16 @@ class ChatService {
     // Generate a unique local message ID for UI tracking
     final localMessageId = '${conversationUid}_${DateTime.now().millisecondsSinceEpoch}';
 
+
+
     try {
       final response = await _apiClient.uploadFile(
         '/message/send',
         filePath: filePath,
         fileName: fileName,
         extraData: {
-          'message': content ?? '',
+          // 'content': content ?? '',
+          'type': type == SendMessageType.image ? 'image' : 'document',
           'id': conversationUid, // Use same ID for all messages in conversation
           'token': _config.apiKey,
           'metadata': metadata.toJson(),
@@ -201,14 +206,14 @@ class ChatService {
           'is_from_visitor': true,
           'message_type': 'my_message', // Visitor's own message
           if (serverTimestamp == null) 'created_at': DateTime.now().toIso8601String(),
-          'type': 'document',
+          'type': type == SendMessageType.image ? 'image' : 'document',
         });
       }
 
       return Message(
         id: int.tryParse(localMessageId.replaceAll(RegExp(r'[^0-9]'), '').substring(0, 9)),
         body: content ?? fileName,
-        type: SendMessageType.document,
+        type: type,
         messageType: MessageType.myMessage,
         messageStatus: MessageStatus.sent,
         createdAt: DateTime.now().toIso8601String(),

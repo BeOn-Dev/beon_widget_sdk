@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import '../config/beon_config.dart';
 import '../utils/app_functions/app_functions.dart';
 
@@ -20,14 +21,14 @@ class BeonApiClient {
         },
       ),
     );
-    // _dio.interceptors.add(PrettyDioLogger(
-    //     requestHeader: true,
-    //     requestBody: true,
-    //     responseBody: true,
-    //     responseHeader: false,
-    //     error: true,
-    //     compact: true,
-    //     maxWidth: 90));
+    _dio.interceptors.add(PrettyDioLogger(
+        requestHeader: true,
+        requestBody: true,
+        responseBody: true,
+        responseHeader: false,
+        error: true,
+        compact: true,
+        maxWidth: 90));
     _dio.interceptors.addAll([
       _AuthInterceptor(config.apiKey, () => _visitorId),
       _ErrorLoggingInterceptor(),
@@ -91,7 +92,7 @@ class BeonApiClient {
     Map<String, dynamic>? extraData,
   }) async {
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath, filename: fileName),
+      'content': await MultipartFile.fromFile(filePath, filename: fileName),
       if (extraData != null) ...extraData,
     });
 

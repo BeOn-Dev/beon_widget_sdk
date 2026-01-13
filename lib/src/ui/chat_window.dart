@@ -93,12 +93,13 @@ class _ChatWindowState extends ConsumerState<ChatWindow> {
             onSend: (content) {
               ref.read(chatStateProvider.notifier).sendMessage(content);
             },
-            // onAttachment: (filePath, fileName) {
-            //   ref.read(chatStateProvider.notifier).sendMessageWithAttachment(
-            //         filePath: filePath,
-            //         fileName: fileName,
-            //       );
-            // },
+            onAttachment: (filePath, fileName, type) {
+              ref.read(chatStateProvider.notifier).sendMessageWithAttachment(
+                    filePath: filePath,
+                    fileName: fileName,
+                    type: type,
+                  );
+            },
             isSending: chatState.isSending,
             primaryColor: theme.primaryColor,
           ),

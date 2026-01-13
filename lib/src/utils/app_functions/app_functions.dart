@@ -14,6 +14,19 @@ class AppFunctions {
   static void logPrint({required String message}) {
     log(message);
   }
+  static String getFileNameFromUrl(String url) {
+    return url.split('/').last;
+  }
+  static String getFileExtension(String url) {
+    final uri = Uri.parse(url);
+    final path = uri.path; // ده بيرجع الجزء الأخير من اللينك
+
+    final fileName = path.split('/').last;
+    if (fileName.contains('.')) {
+      return fileName.split('.').last.split('?').first;
+    }
+    return '';
+  }
   static MessageStatus getMessageStatus({required String status}) {
     switch (status) {
       case 'sending':

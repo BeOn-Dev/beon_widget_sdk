@@ -521,6 +521,7 @@ class ChatStateNotifier extends StateNotifier<ChatState> {
   Future<void> sendMessageWithAttachment({
     required String filePath,
     required String fileName,
+    required SendMessageType type,
     String? content,
   }) async {
     if (state.isSending) return;
@@ -530,7 +531,7 @@ class ChatStateNotifier extends StateNotifier<ChatState> {
     final tempMessage = Message(
       id: tempId,
       body: content ?? fileName,
-      type: SendMessageType.document,
+      type: type,
       messageType: MessageType.myMessage,
       messageStatus: MessageStatus.sending,
       createdAt: DateTime.now().toIso8601String(),
@@ -547,6 +548,7 @@ class ChatStateNotifier extends StateNotifier<ChatState> {
       final sentMessage = await chatService.sendMessageWithAttachment(
         filePath: filePath,
         fileName: fileName,
+        type: type,
         content: content,
       );
 

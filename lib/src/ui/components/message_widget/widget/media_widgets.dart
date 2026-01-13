@@ -1,5 +1,9 @@
+import 'package:beon_widget_sdk/src/ui/image_full_screen.dart';
+import 'package:beon_widget_sdk/src/utils/app_functions/app_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../../../doc_viewer_screen.dart';
 
 // Re-export the proper AudioPlayer from audio_helper
 export '../../../../helper/audio_helper/audio_player/audio_player.dart';
@@ -29,25 +33,35 @@ class MyChatImageWidget extends StatelessWidget {
       return _buildPlaceholder();
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Image.network(
-        image,
-        height: height,
-        width: width,
-        fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            height: height,
-            width: width,
-            color: Colors.grey.shade200,
-            child: const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          );
-        },
-        errorBuilder: (_, __, ___) => _buildPlaceholder(),
+    return InkWell(
+      onTap: (){
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ImageFullScreen(image: image),
+          ),
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          image,
+          height: height,
+          width: width,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              height: height,
+              width: width,
+              color: Colors.grey.shade200,
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            );
+          },
+          errorBuilder: (_, __, ___) => _buildPlaceholder(),
+        ),
       ),
     );
   }
@@ -123,12 +137,15 @@ class DocumentMessageWidget extends StatelessWidget {
     final fileName = doc.split('/').last;
 
     return GestureDetector(
-      onTap: () async {
+      onTap: () {
+        AppFunctions.logPrint(message: "Opening document: $doc");
         if (doc.isNotEmpty) {
-          final uri = Uri.parse(doc);
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          }
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DocumentViewerScreen(doc: doc),
+            ),
+          );
         }
       },
       child: Container(
