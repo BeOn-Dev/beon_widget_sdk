@@ -88,7 +88,7 @@ class _ImageFullScreenState extends State<ImageFullScreen>
                 });
               }
             },
-            icon: Icon(Icons.download,
+            icon: Icon(Icons.share,
               color: AppColors.mainColor,),
           ),
         ],

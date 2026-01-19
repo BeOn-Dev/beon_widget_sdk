@@ -65,7 +65,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
         actions: [
           IconButton(
             onPressed: _downloadFile,
-            icon: Icon(Icons.download,
+            icon: Icon(Icons.share,
             color: AppColors.mainColor,),
           ),
         ],
