@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.7] - 2026-01-19
+
+### Changed
+- Replaced "save to gallery" with Share Sheet for images and documents
+- Button icon changed from download to share icon
+
+### Removed
+- Removed `image_gallery_saver_plus` dependency to eliminate `READ_MEDIA_*` permissions
+- This resolves Google Play policy compliance for apps with infrequent photo use
+
 ## [1.0.6] - 2026-01-13
 
 ### Added
