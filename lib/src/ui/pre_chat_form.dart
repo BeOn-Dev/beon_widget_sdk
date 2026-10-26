@@ -1,3 +1,4 @@
+import 'pre_chat_tablet_layout.dart';
 import 'package:beon_widget_sdk/src/utils/app_functions/app_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,6 +43,18 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
 
     // Fullscreen mode - simple form without card decoration
     if (config.fullScreen) {
+      if (MediaQuery.sizeOf(context).shortestSide >= 600) {
+        return PreChatTabletLayout(
+          formKey: _formKey,
+          config: config,
+          nameController: _nameController,
+          emailController: _emailController,
+          phoneController: _phoneController,
+          messageController: _messageController,
+          isSubmitting: _isSubmitting,
+          onSubmit: _submit,
+        );
+      }
       return _buildFullScreenForm(config, theme);
     }
 
@@ -65,7 +78,9 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
           // Header
           ChatHeader(
             title: config.headerTitle ?? 'Welcome!',
-            subtitle: config.headerSubtitle ?? 'Fill in the details below to get started',
+            subtitle:
+                config.headerSubtitle ??
+                'Fill in the details below to get started',
             primaryColor: theme.primaryColor,
             onClose: () => ref.read(widgetStateProvider.notifier).close(),
             showWave: true,
@@ -159,8 +174,7 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
           ],
 
           // Spacing if no message field
-          if (!config.preChatMessageEnabled)
-            const SizedBox(height: 8),
+          if (!config.preChatMessageEnabled) const SizedBox(height: 8),
 
           // Submit button
           SizedBox(
@@ -170,7 +184,9 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.primaryColor,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: theme.primaryColor.withValues(alpha: 0.6),
+                disabledBackgroundColor: theme.primaryColor.withValues(
+                  alpha: 0.6,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -249,7 +265,7 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_isSubmitting || !(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => _isSubmitting = true);
 
@@ -258,13 +274,15 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
       final chatService = ref.read(chatServiceProvider);
 
       // Update visitor with form data
-      await authService.updateVisitor(PreChatData(
-        name: _nameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        initialMessage: _messageController.text.trim().isNotEmpty
-            ? _messageController.text.trim()
-            : null,
-      ));
+      await authService.updateVisitor(
+        PreChatData(
+          name: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          initialMessage: _messageController.text.trim().isNotEmpty
+              ? _messageController.text.trim()
+              : null,
+        ),
+      );
 
       // Send initial message if provided
       if (_messageController.text.trim().isNotEmpty) {

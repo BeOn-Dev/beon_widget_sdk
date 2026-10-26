@@ -33,11 +33,7 @@ import 'components/powered_by_footer.dart';
 class BeonChatWidget extends StatelessWidget {
   final BeonConfig? config;
 
-
-  const BeonChatWidget({
-    super.key,
-    this.config,
-  });
+  const BeonChatWidget({super.key, this.config});
 
   /// Create widget that reads configuration from HTML script tag
   factory BeonChatWidget.fromScriptTag() {
@@ -59,9 +55,7 @@ class BeonChatWidget extends StatelessWidget {
     }
 
     return ProviderScope(
-      overrides: [
-        configProvider.overrideWithValue(effectiveConfig),
-      ],
+      overrides: [configProvider.overrideWithValue(effectiveConfig)],
       child: Directionality(
         textDirection: effectiveConfig.textDirection,
         child: _BeonChatWidgetContent(config: effectiveConfig),
@@ -80,8 +74,7 @@ class _BeonChatWidgetContent extends ConsumerStatefulWidget {
       _BeonChatWidgetContentState();
 }
 
-class _BeonChatWidgetContentState
-    extends ConsumerState<_BeonChatWidgetContent>
+class _BeonChatWidgetContentState extends ConsumerState<_BeonChatWidgetContent>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -99,21 +92,14 @@ class _BeonChatWidgetContentState
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutBack,
-    ));
+    _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
+    );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+        );
   }
 
   @override
@@ -150,21 +136,31 @@ class _BeonChatWidgetContentState
 
       // Check if pre-chat form should be shown
       // Use authService directly instead of widgetState to avoid timing issues
-      final shouldShowPreChat = effectiveConfig.preChatFormEnabled &&
-                                !authService.isPreChatCompleted;
+      final shouldShowPreChat =
+          effectiveConfig.preChatFormEnabled && !authService.isPreChatCompleted;
 
+      final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
       return Scaffold(
         appBar: AppBar(
+          toolbarHeight: tablet ? 96 : null,
+          foregroundColor: tablet ? const Color(0xFF020F15) : null,
           title: Text(
             effectiveConfig.headerTitle ?? 'Chat',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
+            style: tablet
+                ? const TextStyle(
+                    fontSize: 25,
+                    height: 30 / 25,
+                    color: Color(0xFF020F15),
+                    fontWeight: FontWeight.w500,
+                  )
+                : const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
           ),
-          backgroundColor: effectiveConfig.primaryColor,
+          backgroundColor: tablet ? Colors.white : effectiveConfig.primaryColor,
           elevation: 0,
-          centerTitle: true,
+          centerTitle: !tablet,
         ),
         body: visitorAsync.when(
           data: (visitor) {
@@ -173,7 +169,15 @@ class _BeonChatWidgetContentState
             }
             return _FullScreenChatBody(visitorId: visitor.id);
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => Center(
+            child: tablet
+                ? CircularProgressIndicator.adaptive(
+                    valueColor: AlwaysStoppedAnimation(
+                      effectiveConfig.primaryColor,
+                    ),
+                  )
+                : const CircularProgressIndicator(),
+          ),
           error: (_, __) => const _ErrorWidget(),
         ),
       );
@@ -251,10 +255,7 @@ class _BeonChatWidgetContentState
         appBar: AppBar(
           title: const Text(
             'Chat',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
           ),
           backgroundColor: widget.config.primaryColor,
           elevation: 0,
@@ -311,9 +312,7 @@ class _LoadingWidget extends StatelessWidget {
           ),
         ],
       ),
-      child: const Center(
-        child: CircularProgressIndicator(),
-      ),
+      child: const Center(child: CircularProgressIndicator()),
     );
   }
 }
@@ -344,16 +343,10 @@ class _ErrorWidget extends StatelessWidget {
           SizedBox(height: 16),
           Text(
             'Unable to load chat',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           SizedBox(height: 8),
-          Text(
-            'Please try again later',
-            style: TextStyle(color: Colors.grey),
-          ),
+          Text('Please try again later', style: TextStyle(color: Colors.grey)),
         ],
       ),
     );
@@ -387,10 +380,7 @@ class _ChannelErrorWidget extends StatelessWidget {
             SizedBox(height: 16),
             Text(
               'Configuration Error',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             SizedBox(height: 8),
             Text(
@@ -425,19 +415,21 @@ class _FullScreenChatBody extends ConsumerWidget {
     return Column(
       children: [
         // Messages area
-        Expanded(
-          child: _buildMessageArea(context, ref, chatState, theme),
-        ),
+        Expanded(child: _buildMessageArea(context, ref, chatState, theme)),
 
         // Input area
         MessageInput(
           onSend: (content) {
             ref.read(chatStateProvider.notifier).sendMessage(content);
           },
-          onAttachment: (filePath,fileName,type){
-            ref.read(chatStateProvider.notifier).sendMessageWithAttachment(filePath: filePath, fileName: fileName,type: type);
-
-
+          onAttachment: (filePath, fileName, type) {
+            ref
+                .read(chatStateProvider.notifier)
+                .sendMessageWithAttachment(
+                  filePath: filePath,
+                  fileName: fileName,
+                  type: type,
+                );
           },
 
           isSending: chatState.isSending,
@@ -506,10 +498,7 @@ class _FullScreenChatBody extends ConsumerWidget {
               Text(
                 'Start a conversation',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
               ),
             ],
           ),
@@ -544,10 +533,7 @@ class _FullScreenChatBody extends ConsumerWidget {
             alignment: isMyMessage
                 ? Alignment.centerRight
                 : Alignment.centerLeft,
-            child: MessageBubble(
-              isMyMessage: isMyMessage,
-              message: message,
-            ),
+            child: MessageBubble(isMyMessage: isMyMessage, message: message),
           ),
         );
       },
