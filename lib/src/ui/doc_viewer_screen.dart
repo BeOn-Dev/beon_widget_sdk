@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_document_viewer/flutter_document_viewer.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 import '../helper/download_file/download_file.dart';
 import '../models/download_file_type/download_file_type.dart';
@@ -17,7 +17,7 @@ class DocumentViewerScreen extends StatefulWidget {
 }
 
 class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
-  late final FlutterDocumentViewerController _controller;
+  late final WebViewController _controller;
 
   bool _isDownloading = false;
   double _progress = 0;
@@ -25,12 +25,17 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = FlutterDocumentViewerController(
-      onReady: () {},
-      onPageChanged: (currentPage, totalPages) {
-        debugPrint('Page changed to $currentPage of $totalPages');
-      },
-    );
+    // Native code must never evaluate JavaScript in this view: on iOS a
+    // pending evaluation crashes webview_flutter_wkwebview when the app is
+    // closed from the app switcher (SIGABRT reading a destroyed registrar).
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadRequest(
+        Uri.https('docs.google.com', '/gview', {
+          'embedded': 'true',
+          'url': widget.doc,
+        }),
+      );
   }
 
   Future<void> _downloadFile() async {
@@ -73,14 +78,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       body: Stack(
         children: [
           // Document viewer
-          FlutterDocumentViewer(
-            url: widget.doc,
-            controller: _controller,
-            showControls: false,
-            onPageChanged: (currentPage, totalPages) {
-              debugPrint('Page changed callback: $currentPage of $totalPages');
-            },
-          ),
+          WebViewWidget(controller: _controller),
 
           if (_isDownloading)
             Center(
