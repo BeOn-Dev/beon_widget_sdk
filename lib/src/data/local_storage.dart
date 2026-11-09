@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/visitor.dart';
 import '../models/message.dart';
@@ -11,6 +12,11 @@ class LocalStorageService {
   static const _messagesKey = 'beon_messages_cache';
   static const _preChatCompletedKey = 'beon_prechat_completed';
   static const _conversationUidKey = 'beon_conversation_uid';
+
+  final String? scope;
+  LocalStorageService({this.scope});
+  String _key(String key) =>
+      scope == null ? key : '${key}_${sha256.convert(utf8.encode(scope!))}';
 
   SharedPreferences? _prefs;
   bool _initialized = false;
@@ -25,36 +31,38 @@ class LocalStorageService {
   /// Ensure initialized before operations
   void _ensureInitialized() {
     if (!_initialized || _prefs == null) {
-      throw StateError('LocalStorageService not initialized. Call init() first.');
+      throw StateError(
+        'LocalStorageService not initialized. Call init() first.',
+      );
     }
   }
 
   // Visitor ID
   String? getVisitorId() {
     _ensureInitialized();
-    return _prefs!.getString(_visitorIdKey);
+    return _prefs!.getString(_key(_visitorIdKey));
   }
 
   Future<bool> saveVisitorId(String id) {
     _ensureInitialized();
-    return _prefs!.setString(_visitorIdKey, id);
+    return _prefs!.setString(_key(_visitorIdKey), id);
   }
 
   // Session ID
   String? getSessionId() {
     _ensureInitialized();
-    return _prefs!.getString(_sessionIdKey);
+    return _prefs!.getString(_key(_sessionIdKey));
   }
 
   Future<bool> saveSessionId(String id) {
     _ensureInitialized();
-    return _prefs!.setString(_sessionIdKey, id);
+    return _prefs!.setString(_key(_sessionIdKey), id);
   }
 
   // Visitor data
   Visitor? getVisitor() {
     _ensureInitialized();
-    final data = _prefs!.getString(_visitorDataKey);
+    final data = _prefs!.getString(_key(_visitorDataKey));
     if (data == null) return null;
     try {
       return Visitor.fromJson(jsonDecode(data));
@@ -65,7 +73,10 @@ class LocalStorageService {
 
   Future<bool> saveVisitor(Visitor visitor) {
     _ensureInitialized();
-    return _prefs!.setString(_visitorDataKey, jsonEncode(visitor.toJson()));
+    return _prefs!.setString(
+      _key(_visitorDataKey),
+      jsonEncode(visitor.toJson()),
+    );
   }
 
   // Pre-chat completion status
@@ -74,29 +85,29 @@ class LocalStorageService {
     if (!_initialized || _prefs == null) {
       return false; // Not initialized, assume not completed
     }
-    return _prefs!.getBool(_preChatCompletedKey) ?? false;
+    return _prefs!.getBool(_key(_preChatCompletedKey)) ?? false;
   }
 
   Future<bool> setPreChatCompleted(bool completed) {
     _ensureInitialized();
-    return _prefs!.setBool(_preChatCompletedKey, completed);
+    return _prefs!.setBool(_key(_preChatCompletedKey), completed);
   }
 
   // Conversation ID (identifies the chat conversation)
   String? getConversationUid() {
     _ensureInitialized();
-    return _prefs!.getString(_conversationUidKey);
+    return _prefs!.getString(_key(_conversationUidKey));
   }
 
   Future<bool> saveConversationUid(String uid) {
     _ensureInitialized();
-    return _prefs!.setString(_conversationUidKey, uid);
+    return _prefs!.setString(_key(_conversationUidKey), uid);
   }
 
   // Message cache
   List<Message>? getCachedMessages() {
     _ensureInitialized();
-    final data = _prefs!.getString(_messagesKey);
+    final data = _prefs!.getString(_key(_messagesKey));
     if (data == null) return null;
     try {
       final List<dynamic> jsonList = jsonDecode(data);
@@ -109,20 +120,24 @@ class LocalStorageService {
   Future<bool> cacheMessages(List<Message> messages) {
     _ensureInitialized();
     final jsonList = messages.map((m) => _messageToJson(m)).toList();
-    return _prefs!.setString(_messagesKey, jsonEncode(jsonList));
+    return _prefs!.setString(_key(_messagesKey), jsonEncode(jsonList));
   }
 
   /// Convert Message to JSON for caching
   Map<String, dynamic> _messageToJson(Message m) {
     return {
-      if (m.id != null) 'id': m.id,
+      if (m.serverId != null || m.id != null) 'id': m.serverId ?? m.id,
+      if (m.isPrivate) 'private': true,
       if (m.uId != null) 'uid': m.uId,
       if (m.conversationId != null) 'conversation_id': m.conversationId,
       if (m.body != null) 'body': m.body,
       if (m.localPath != null) 'local_path': m.localPath,
       if (m.status != null) 'status': m.status,
       if (m.type != null) 'type': m.type?.name,
-      if (m.messageType != null) 'message_type': m.messageType == MessageType.myMessage ? 'my_message' : 'client_message',
+      if (m.messageType != null)
+        'message_type': m.messageType == MessageType.myMessage
+            ? 'my_message'
+            : 'client_message',
       if (m.messageId != null) 'message_id': m.messageId,
       if (m.createdAt != null) 'created_at': m.createdAt,
       if (m.channelId != null) 'channel_id': m.channelId,
@@ -136,28 +151,28 @@ class LocalStorageService {
   // Clear all cached messages
   Future<bool> clearMessages() {
     _ensureInitialized();
-    return _prefs!.remove(_messagesKey);
+    return _prefs!.remove(_key(_messagesKey));
   }
 
   // Clear all data
   Future<void> clear() async {
     _ensureInitialized();
-    await _prefs!.remove(_visitorIdKey);
-    await _prefs!.remove(_visitorDataKey);
-    await _prefs!.remove(_sessionIdKey);
-    await _prefs!.remove(_messagesKey);
-    await _prefs!.remove(_preChatCompletedKey);
-    await _prefs!.remove(_conversationUidKey);
+    await _prefs!.remove(_key(_visitorIdKey));
+    await _prefs!.remove(_key(_visitorDataKey));
+    await _prefs!.remove(_key(_sessionIdKey));
+    await _prefs!.remove(_key(_messagesKey));
+    await _prefs!.remove(_key(_preChatCompletedKey));
+    await _prefs!.remove(_key(_conversationUidKey));
   }
 
   // Get storage key with prefix (for custom data)
   String? getString(String key) {
     _ensureInitialized();
-    return _prefs!.getString('beon_$key');
+    return _prefs!.getString(_key('beon_$key'));
   }
 
   Future<bool> setString(String key, String value) {
     _ensureInitialized();
-    return _prefs!.setString('beon_$key', value);
+    return _prefs!.setString(_key('beon_$key'), value);
   }
 }

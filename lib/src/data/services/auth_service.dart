@@ -27,7 +27,8 @@ class AuthService {
   set initialMessage(String? value) => _initialMessage = value;
 
   /// Get/set conversation ID (used as uid for API requests)
-  String? get conversationUid => _conversationUid ?? _storage.getConversationUid();
+  String? get conversationUid =>
+      _conversationUid ?? _storage.getConversationUid();
   set conversationUid(String? value) {
     _conversationUid = value;
     if (value != null) {
@@ -59,7 +60,7 @@ class AuthService {
       _browserInfo ?? FingerprintGenerator.getDefaultBrowserInfo();
 
   /// Initialize auth service and get/create visitor
-  Future<Visitor> initialize() async {
+  Future<Visitor> initialize({bool requireAuthenticatedUser = false}) async {
     // Generate session fingerprint (new each session)
     _sessionFingerprint = FingerprintGenerator.generateSessionFingerprint();
 
@@ -68,32 +69,52 @@ class AuthService {
     _browserInfo = _getBrowserInfo();
 
     // Generate fingerprints
-    _deviceFingerprint =
-        FingerprintGenerator.generateDeviceFingerprint(_deviceInfo!);
-    _browserFingerprint =
-        FingerprintGenerator.generateBrowserFingerprint(_browserInfo!);
+    _deviceFingerprint = FingerprintGenerator.generateDeviceFingerprint(
+      _deviceInfo!,
+    );
+    _browserFingerprint = FingerprintGenerator.generateBrowserFingerprint(
+      _browserInfo!,
+    );
 
-    // Check for existing visitor
-    final existingId = _storage.getVisitorId();
-    final existingVisitor = _storage.getVisitor();
-
-    if (existingId != null && existingVisitor != null) {
-      _currentVisitor = existingVisitor;
-      _apiClient.setVisitorId(existingId);
-
-      // Validate with server if needed
-      try {
-        await _validateWidget();
-      } catch (e) {
-        // Continue with cached visitor if validation fails
-      }
-
-      return _currentVisitor!;
+    final userId = _config.userId?.trim();
+    if (requireAuthenticatedUser && (userId == null || userId.isEmpty)) {
+      throw StateError(
+        'A users_login channel requires BeonConfig.user or externalUserId.',
+      );
     }
-
-    // Check for external user ID from config
-    if (_config.externalUserId != null) {
-      return _createVisitor(_config.externalUserId!);
+    final existingVisitor = _storage.getVisitor();
+    if (userId != null && userId.isNotEmpty) {
+      // Host identity takes precedence over a previously cached anonymous user.
+      if (existingVisitor != null && existingVisitor.id != userId) {
+        await _storage.clear();
+      }
+      final user = _config.user;
+      final visitor = Visitor(
+        id: userId,
+        name:
+            user?.name ??
+            (existingVisitor?.id == userId ? existingVisitor?.name : null),
+        email:
+            user?.email ??
+            (existingVisitor?.id == userId ? existingVisitor?.email : null),
+        phone:
+            user?.phone ??
+            (existingVisitor?.id == userId ? existingVisitor?.phone : null),
+        createdAt: existingVisitor?.id == userId
+            ? existingVisitor!.createdAt
+            : DateTime.now(),
+      );
+      await _storage.saveVisitorId(userId);
+      await _storage.saveVisitor(visitor);
+      _currentVisitor = visitor;
+      _apiClient.setVisitorId(userId);
+      if (requireAuthenticatedUser) await _storage.setPreChatCompleted(true);
+      return visitor;
+    }
+    if (existingVisitor != null) {
+      _currentVisitor = existingVisitor;
+      _apiClient.setVisitorId(existingVisitor.id);
+      return existingVisitor;
     }
 
     // Generate new visitor ID
@@ -103,10 +124,7 @@ class AuthService {
 
   /// Create a new visitor
   Future<Visitor> _createVisitor(String id) async {
-    final visitor = Visitor(
-      id: id,
-      createdAt: DateTime.now(),
-    );
+    final visitor = Visitor(id: id, createdAt: DateTime.now());
 
     await _storage.saveVisitorId(id);
     await _storage.saveVisitor(visitor);
@@ -138,17 +156,6 @@ class AuthService {
     return updatedVisitor;
   }
 
-  /// Validate widget API key
-  Future<bool> _validateWidget() async {
-    try {
-      final response =
-          await _apiClient.get('/channels/validate/${_config.apiKey}');
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
-    }
-  }
-
   /// Check if pre-chat is completed
   /// Only uses local storage flag - not visitor name from API
   /// This ensures form shows on fresh install even if API returns visitor data
@@ -158,7 +165,10 @@ class AuthService {
 
   /// Generate message metadata
   /// If [messageContent] is provided, it will be included in visitorInfo
-  MessageMetadata generateMetadata({String? messageContent, String? conversationUid}) {
+  MessageMetadata generateMetadata({
+    String? messageContent,
+    String? conversationUid,
+  }) {
     // Use provided message or the stored initial message
     final message = messageContent ?? _initialMessage;
 
@@ -174,7 +184,7 @@ class AuthService {
       displayName: _currentVisitor?.displayName ?? 'Visitor',
       visitorInfo: _currentVisitor != null
           ? VisitorInfo(
-              name: _currentVisitor?.name ?? (conversationUid??''),
+              name: _currentVisitor?.name ?? (conversationUid ?? ''),
               phone: _currentVisitor?.phone ?? '',
               email: _currentVisitor?.email,
               message: message,
@@ -205,5 +215,7 @@ class AuthService {
   Future<void> logout() async {
     await _storage.clear();
     _currentVisitor = null;
+    _conversationUid = null;
+    _initialMessage = null;
   }
 }

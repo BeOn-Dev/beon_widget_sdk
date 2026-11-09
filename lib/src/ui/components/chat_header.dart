@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'support_style.dart';
 
-/// Header component for chat window and pre-chat form
 class ChatHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Color primaryColor;
   final VoidCallback onClose;
   final bool showWave;
+  final String? avatarUrl;
+  final String locale;
+  final bool showClose;
+  final EdgeInsetsGeometry padding;
 
   const ChatHeader({
     super.key,
@@ -15,76 +19,109 @@ class ChatHeader extends StatelessWidget {
     required this.primaryColor,
     required this.onClose,
     this.showWave = false,
+    this.avatarUrl,
+    this.locale = 'en',
+    this.showClose = true,
+    this.padding = const EdgeInsetsDirectional.fromSTEB(20, 16, 20, 10),
   });
 
   @override
   Widget build(BuildContext context) {
+    final strings = SupportStrings(locale);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: primaryColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      color: Colors.white,
+      padding: padding,
+      child: Row(
         children: [
-          Row(
+          Stack(
+            clipBehavior: Clip.none,
             children: [
-              // Wave emoji for welcome
-              if (showWave)
-                const Padding(
-                  padding: EdgeInsets.only(right: 8),
-                  child: Text(
-                    '\u{1F44B}', // Wave emoji
-                    style: TextStyle(fontSize: 24),
-                  ),
-                ),
-              // Title and subtitle
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: SupportStyle.ink,
+                backgroundImage: avatarUrl == null || avatarUrl!.isEmpty
+                    ? null
+                    : NetworkImage(avatarUrl!),
+                onBackgroundImageError: avatarUrl == null || avatarUrl!.isEmpty
+                    ? null
+                    : (_, _) {},
+                child: avatarUrl == null || avatarUrl!.isEmpty
+                    ? const Icon(
+                        Icons.account_circle,
                         color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle!,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+                        size: 20,
+                      )
+                    : null,
               ),
-              // Close button
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: onClose,
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+              Positioned(
+                bottom: -1,
+                right: -1,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: primaryColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
                   ),
                 ),
               ),
             ],
           ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.25,
+                    fontWeight: FontWeight.w700,
+                    color: SupportStyle.ink,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        subtitle ?? strings.online,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: SupportStyle.muted,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (showClose)
+            IconButton(
+              onPressed: onClose,
+              tooltip: strings.close,
+              icon: const Icon(
+                Icons.close,
+                size: 16,
+                color: SupportStyle.muted,
+              ),
+            ),
         ],
       ),
     );

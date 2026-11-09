@@ -24,19 +24,19 @@ class BeonTheme {
 
   const BeonTheme({
     this.primaryColor = const Color(0xFF017DC0),
-    this.backgroundColor = Colors.white,
+    this.backgroundColor = const Color(0xFFF8FAFC),
     this.surfaceColor = const Color(0xFFF5F5F5),
     this.textColor = const Color(0xFF212121),
     this.secondaryTextColor = const Color(0xFF757575),
     this.visitorBubbleColor = const Color(0xFF00BCD4),
-    this.agentBubbleColor = const Color(0xFFF5F5F5),
+    this.agentBubbleColor = Colors.white,
     this.visitorTextColor = Colors.white,
     this.agentTextColor = const Color(0xFF212121),
-    this.windowBorderRadius = const BorderRadius.all(Radius.circular(16)),
+    this.windowBorderRadius = const BorderRadius.all(Radius.circular(28)),
     this.bubbleBorderRadius = const BorderRadius.all(Radius.circular(16)),
     this.launcherSize = 56,
-    this.windowWidth = 360,
-    this.windowHeight = 520,
+    this.windowWidth = 380,
+    this.windowHeight = 590,
     this.windowPadding = const EdgeInsets.all(16),
     this.headerTitleStyle,
     this.headerSubtitleStyle,
@@ -46,10 +46,7 @@ class BeonTheme {
 
   /// Create theme from primary color
   factory BeonTheme.fromPrimaryColor(Color color) {
-    return BeonTheme(
-      primaryColor: color,
-      visitorBubbleColor: color,
-    );
+    return BeonTheme(primaryColor: color, visitorBubbleColor: color);
   }
 
   /// Copy with modified values

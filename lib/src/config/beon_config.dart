@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
+import '../models/beon_user.dart';
 
 /// Widget position on the screen
-enum BeonPosition {
-  bottomRight,
-  bottomLeft,
-  topRight,
-  topLeft,
-}
+enum BeonPosition { bottomRight, bottomLeft, topRight, topLeft }
 
 /// Configuration for the Beon Chat Widget
 ///
@@ -26,6 +22,8 @@ class BeonConfig {
   final Color primaryColor;
   final BeonPosition position;
   final String? externalUserId;
+  final BeonUser? user;
+  String? get userId => user?.id ?? externalUserId;
   final String? welcomeMessage;
   final bool enableSounds;
   final bool enablePollingFallback;
@@ -44,12 +42,18 @@ class BeonConfig {
   final bool preChatMessageEnabled;
   final bool fullScreen;
 
+  /// Null follows channel settings. Explicit values override them.
+  final bool? ticketsEnabled;
+  final List<Map<String, dynamic>> ticketCategories;
+  final String? avatarUrl;
+
   const BeonConfig({
     required this.apiKey,
     this.channelId,
     this.primaryColor = const Color(0xFF00BCD4),
     this.position = BeonPosition.bottomRight,
     this.externalUserId,
+    this.user,
     this.welcomeMessage,
     this.enableSounds = true,
     this.enablePollingFallback = false,
@@ -57,7 +61,7 @@ class BeonConfig {
     this.locale = 'en',
     this.textDirection = TextDirection.ltr,
     this.baseUrl = 'https://v3.api.beon.chat/api/widget/v5',
-    this.wsUrl = 'wss://v3.api.beon.chat',
+    this.wsUrl = 'wss://ws.beon.chat',
     this.widgetVersion = '1.0.0',
     this.preChatFormEnabled = true,
     this.headerTitle,
@@ -67,6 +71,9 @@ class BeonConfig {
     this.preChatPhoneEnabled = true,
     this.preChatMessageEnabled = true,
     this.fullScreen = false,
+    this.ticketsEnabled,
+    this.ticketCategories = const [],
+    this.avatarUrl,
   });
 
   /// Create config from a map (useful for parsing script tag attributes)
@@ -126,6 +133,7 @@ class BeonConfig {
     Color? primaryColor,
     BeonPosition? position,
     String? externalUserId,
+    BeonUser? user,
     String? welcomeMessage,
     bool? enableSounds,
     bool? enablePollingFallback,
@@ -142,6 +150,9 @@ class BeonConfig {
     bool? preChatPhoneEnabled,
     bool? preChatMessageEnabled,
     bool? fullScreen,
+    bool? ticketsEnabled,
+    List<Map<String, dynamic>>? ticketCategories,
+    String? avatarUrl,
   }) {
     return BeonConfig(
       apiKey: apiKey ?? this.apiKey,
@@ -149,9 +160,11 @@ class BeonConfig {
       primaryColor: primaryColor ?? this.primaryColor,
       position: position ?? this.position,
       externalUserId: externalUserId ?? this.externalUserId,
+      user: user ?? this.user,
       welcomeMessage: welcomeMessage ?? this.welcomeMessage,
       enableSounds: enableSounds ?? this.enableSounds,
-      enablePollingFallback: enablePollingFallback ?? this.enablePollingFallback,
+      enablePollingFallback:
+          enablePollingFallback ?? this.enablePollingFallback,
       pollingInterval: pollingInterval ?? this.pollingInterval,
       locale: locale ?? this.locale,
       textDirection: textDirection ?? this.textDirection,
@@ -163,8 +176,13 @@ class BeonConfig {
       preChatNameEnabled: preChatNameEnabled ?? this.preChatNameEnabled,
       preChatEmailEnabled: preChatEmailEnabled ?? this.preChatEmailEnabled,
       preChatPhoneEnabled: preChatPhoneEnabled ?? this.preChatPhoneEnabled,
-      preChatMessageEnabled: preChatMessageEnabled ?? this.preChatMessageEnabled,
+      preChatMessageEnabled:
+          preChatMessageEnabled ?? this.preChatMessageEnabled,
       fullScreen: fullScreen ?? this.fullScreen,
+      ticketsEnabled: ticketsEnabled ?? this.ticketsEnabled,
+      ticketCategories: ticketCategories ?? this.ticketCategories,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      widgetVersion: widgetVersion,
     );
   }
 }

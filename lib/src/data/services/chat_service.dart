@@ -1,24 +1,25 @@
-import 'package:beon_widget_sdk/src/utils/app_functions/app_functions.dart';
-
+import 'dart:convert';
+import 'package:dio/dio.dart';
 import '../api_client.dart';
 import '../../models/message.dart';
 import '../../models/metadata.dart';
 import '../../models/channel_config.dart';
-import '../../utils/fingerprint_generator.dart';
 import '../../config/beon_config.dart';
 
-/// Service for chat API operations
 class ChatService {
   final BeonApiClient _apiClient;
   final BeonConfig _config;
   final String Function() _getVisitorId;
-  final MessageMetadata Function({String? messageContent,String? conversationUId}) _getMetadata;
-  final void Function()? _clearInitialMessage;
+  final MessageMetadata Function({
+    String? messageContent,
+    String? conversationUId,
+  })
+  _getMetadata;
   final String? Function() _getConversationUid;
   final void Function(String) _setConversationUid;
-  static ChannelConfig? _cachedChannelConfig;
-  static String? _cachedApiKey;
-  static Future<ChannelConfig?>? _pendingRequest;
+  final void Function()? _clearInitialMessage;
+  Future<ChannelConfig?>? _channelRequest;
+  bool? historyHasMore;
 
   ChatService(
     this._apiClient,
@@ -30,258 +31,175 @@ class ChatService {
     this._clearInitialMessage,
   ]);
 
-  /// Fetch message history
-  /// Returns a tuple of (messages, conversationId)
+  String get _uid {
+    final visitor = _getVisitorId().trim();
+    final value = visitor.isNotEmpty ? visitor : _getConversationUid();
+    if (value == null || value.isEmpty) {
+      throw StateError('Visitor is not initialized');
+    }
+    return value;
+  }
+
   Future<(List<Message>, int?)> fetchHistory({
     int page = 1,
-    int limit = 20,
+    int limit = 10,
     DateTime? before,
   }) async {
-    final conversationUid = _getConversationUid();
-    if (conversationUid == null) {
-      // No conversation started yet
-      return (<Message>[], null);
-    }
-
-    final params = <String, dynamic>{
-      'page': page,
-      'limit': limit,
-      'uid': conversationUid,
-    };
-
-    if (before != null) {
-      params['before'] = before.toIso8601String();
-    }
-
     try {
       final response = await _apiClient.get(
         '/messages',
-        queryParameters: params,
+        queryParameters: {
+          'uid': _uid,
+          'token': _config.apiKey,
+          'page': page,
+          'limit': limit,
+          if (before != null) 'before': before.toIso8601String(),
+        },
       );
-
-      final data = response.data;
-      if (data is Map<String, dynamic>) {
-        // Parse using MessagesResponse for proper structure handling
-        final messagesResponse = MessagesResponse.fromJson(data);
-        AppFunctions.logPrint(message: "Messagaessss s : ${messagesResponse.messages.toString()}");
-        return (messagesResponse.messages, messagesResponse.conversationId);
-      } else if (data is List) {
-        return (data.map((json) => Message.fromJson(json)).toList(), null);
+      final parsed = MessagesResponse.fromJson(
+        response.data is Map
+            ? Map<String, dynamic>.from(response.data)
+            : {'data': response.data},
+      );
+      historyHasMore = parsed.meta.currentPage < parsed.meta.lastPage;
+      return (parsed.messages, parsed.conversationId);
+    } on DioException catch (error) {
+      // The widget API returns 404 for a visitor who has not started a chat.
+      if (error.response?.statusCode == 404) {
+        historyHasMore = false;
+        return (<Message>[], null);
       }
-
-      return (<Message>[], null);
-    } catch (e) {
       rethrow;
     }
   }
 
-  /// Send a text message
+  Map<String, dynamic> _messageData(dynamic value) {
+    if (value is! Map) return {};
+    final root = Map<String, dynamic>.from(value);
+    final data = root['data'] is Map
+        ? Map<String, dynamic>.from(root['data'])
+        : root;
+    final nested = data['message'] is Map
+        ? Map<String, dynamic>.from(data['message'])
+        : data['data'] is Map
+        ? _messageData(data['data'])
+        : data;
+    return {...data, ...nested};
+  }
+
+  Message _sent(
+    dynamic response, {
+    required String body,
+    required SendMessageType type,
+    String? localPath,
+  }) {
+    final data = _messageData(response);
+    final conversation = data['conversation'];
+    return Message.fromJson({
+      ...data,
+      'id': data['id'] ?? data['message_id'],
+      'body':
+          data['body'] ??
+          data['url'] ??
+          data['path'] ??
+          data['file_url'] ??
+          body,
+      'type': type.name,
+      'message_type': 'incoming',
+      'status': data['status'] ?? 'sent',
+      'created_at': data['created_at'] ?? DateTime.now().toIso8601String(),
+      'conversation_id':
+          data['conversation_id'] ??
+          data['conversationId'] ??
+          (conversation is Map ? conversation['id'] : null),
+      if (localPath != null) 'local_path': localPath,
+    });
+  }
+
   Future<Message> sendMessage(String content) async {
-
-    // Get or create conversation UID (same ID for all messages in conversation)
-    String conversationUid = _getConversationUid() ?? FingerprintGenerator.generateMessageId();
-
-    final metadata = _getMetadata(messageContent: content,conversationUId:conversationUid );
-
-    // Set conversation UID if this is the first message
-    if (_getConversationUid() == null) {
-      _setConversationUid(conversationUid);
-    }
-
-    final payload = {
-      'content': content,
-      'type':'text',
-      'id': conversationUid, // Use same ID for all messages in conversation
-      'token': _config.apiKey,
-      'metadata': metadata.toJson(),
-    };
-
-    // Clear initial message after first send
+    final uid = _uid;
+    final metadata = _getMetadata(
+      messageContent: content,
+      conversationUId: uid,
+    );
+    final response = await _apiClient.post(
+      '/message/send',
+      data: {
+        'content': content,
+        'type': 'text',
+        'id': uid,
+        'token': _config.apiKey,
+        'meta_data': metadata.toJson(),
+      },
+    );
+    _setConversationUid(uid);
     _clearInitialMessage?.call();
-
-    // Generate a unique local message ID for UI tracking
-    final localMessageId = '${conversationUid}_${DateTime.now().millisecondsSinceEpoch}';
-
-    try {
-      final response = await _apiClient.post(
-        '/message/send',
-        data: payload,
-      );
-
-      final data = response.data;
-      if (data is Map<String, dynamic>) {
-        // Parse id as int (API may return int or String)
-        try {
-          int? messageId;
-          if (data['id'] != null) {
-            messageId = data['id'] is int
-                ? data['id']
-                : int.tryParse(data['id'].toString());
-          }
-
-          // Use server timestamp if available, otherwise use local time
-          final serverTimestamp = data['created_at']?.toString();
-
-          return Message.fromJson({
-            ...data,
-            'id': messageId,
-            'body': content,
-            'is_from_visitor': true,
-            'message_type': 'my_message', // Visitor's own message
-            if (serverTimestamp == null) 'created_at': DateTime.now().toIso8601String(),
-          });
-        } catch (e) {
-          AppFunctions.logPrint(message: "Error parsing message: ${e.toString()}");
-        }
-      }
-
-      // Return optimistic message if response doesn't include full data
-      return Message(
-        id: int.tryParse(localMessageId.replaceAll(RegExp(r'[^0-9]'), '').substring(0, 9)),
-        body: content,
-        type: SendMessageType.text,
-        messageType: MessageType.myMessage,
-        messageStatus: MessageStatus.sent,
-        createdAt: DateTime.now().toIso8601String(),
-        agentName: metadata.senderName,
-      );
-    } catch (e) {
-      rethrow;
-    }
+    return _sent(response.data, body: content, type: SendMessageType.text);
   }
 
-  /// Send a message with attachment
   Future<Message> sendMessageWithAttachment({
     required String filePath,
     required String fileName,
     required SendMessageType type,
     String? content,
   }) async {
-    final metadata = _getMetadata();
-
-    // Get or create conversation UID (same ID for all messages in conversation)
-    String conversationUid = _getConversationUid() ?? FingerprintGenerator.generateMessageId();
-
-    // Set conversation UID if this is the first message
-    if (_getConversationUid() == null) {
-      _setConversationUid(conversationUid);
-    }
-
-    // Generate a unique local message ID for UI tracking
-    final localMessageId = '${conversationUid}_${DateTime.now().millisecondsSinceEpoch}';
-
-
-
-    try {
-      final response = await _apiClient.uploadFile(
-        '/message/send',
-        filePath: filePath,
-        fileName: fileName,
-        extraData: {
-          // 'content': content ?? '',
-          'type': type == SendMessageType.image ? 'image' : 'document',
-          'id': conversationUid, // Use same ID for all messages in conversation
-          'token': _config.apiKey,
-          'metadata': metadata.toJson(),
-        },
-      );
-
-      final data = response.data;
-      if (data is Map<String, dynamic>) {
-        // Parse id as int
-        int? messageId;
-        if (data['id'] != null) {
-          messageId = data['id'] is int
-              ? data['id']
-              : int.tryParse(data['id'].toString());
-        }
-
-        // Use server timestamp if available
-        final serverTimestamp = data['created_at']?.toString();
-
-        return Message.fromJson({
-          ...data,
-          'id': messageId,
-          'body': content ?? fileName,
-          'is_from_visitor': true,
-          'message_type': 'my_message', // Visitor's own message
-          if (serverTimestamp == null) 'created_at': DateTime.now().toIso8601String(),
-          'type': type == SendMessageType.image ? 'image' : 'document',
-        });
-      }
-
-      return Message(
-        id: int.tryParse(localMessageId.replaceAll(RegExp(r'[^0-9]'), '').substring(0, 9)),
-        body: content ?? fileName,
-        type: type,
-        messageType: MessageType.myMessage,
-        messageStatus: MessageStatus.sent,
-        createdAt: DateTime.now().toIso8601String(),
-        agentName: metadata.senderName,
-      );
-    } catch (e) {
-      rethrow;
-    }
+    final uid = _uid;
+    final metadata = _getMetadata(conversationUId: uid);
+    final response = await _apiClient.uploadFile(
+      '/message/send',
+      filePath: filePath,
+      fileName: fileName,
+      extraData: {
+        'type': type.name,
+        'id': uid,
+        'token': _config.apiKey,
+        'metadata': jsonEncode(metadata.toJson()),
+      },
+    );
+    _setConversationUid(uid);
+    _clearInitialMessage?.call();
+    return _sent(
+      response.data,
+      body: content ?? fileName,
+      type: type,
+      localPath: filePath,
+    );
   }
 
-  /// Mark message as read
   Future<void> markAsRead(String messageId) async {
     try {
       await _apiClient.post(
         '/messages/$messageId/read',
-        data: {
-          'uid': _getVisitorId(),
-        },
+        data: {'uid': _uid, 'token': _config.apiKey},
       );
     } catch (_) {
-      // Silent fail for read receipts
+      /* Read receipt failures must not interrupt chat. */
     }
   }
 
-  /// Validate widget and fetch channel configuration
-  ///
-  /// Returns [ChannelConfig] with settings from API including:
-  /// - Channel ID, name, identifier
-  /// - Pre-chat form settings (enabled fields)
-  /// - Primary color, position
-  /// - Welcome message
-  Future<ChannelConfig?> fetchChannelConfig() async {
-    // Return cached config if available for the same API key
-    if (_cachedChannelConfig != null && _cachedApiKey == _config.apiKey) {
-      return _cachedChannelConfig;
-    }
+  Future<ChannelConfig?> fetchChannelConfig() {
+    // Cache only within this client, so concurrent widgets cannot exchange channels.
+    return _channelRequest ??= _fetchChannelConfig();
+  }
 
-    // If there's a pending request for the same API key, wait for it
-    if (_pendingRequest != null && _cachedApiKey == _config.apiKey) {
-      return _pendingRequest;
-    }
-
-    // Start new request
-    _cachedApiKey = _config.apiKey;
-    _pendingRequest = _fetchChannelConfigFromApi();
-
+  Future<ChannelConfig?> _fetchChannelConfig() async {
     try {
-      final result = await _pendingRequest;
-      _cachedChannelConfig = result;
-      return result;
-    } finally {
-      _pendingRequest = null;
+      final response = await _apiClient.get(
+        '/channels/validate/${_config.apiKey}',
+      );
+      final channel = ChannelConfig.fromApiResponse(
+        Map<String, dynamic>.from(response.data),
+      );
+      if (channel == null) throw StateError('Invalid support channel');
+      if (_config.channelId != null && _config.channelId != channel.id) {
+        throw StateError('Support channel does not match configuration');
+      }
+      return channel;
+    } catch (_) {
+      _channelRequest = null;
+      rethrow;
     }
   }
 
-  /// Internal method to fetch channel config from API
-  Future<ChannelConfig?> _fetchChannelConfigFromApi() async {
-    final response =
-        await _apiClient.get('/channels/validate/${_config.apiKey}');
-    if (response.statusCode == 200 && response.data != null) {
-      return ChannelConfig.fromApiResponse(response.data);
-    }
-    return null;
-  }
-
-  /// Validate widget configuration (legacy method)
-  Future<bool> validateWidget() async {
-    final config = await fetchChannelConfig();
-    return config != null;
-  }
+  Future<bool> validateWidget() async => await fetchChannelConfig() != null;
 }

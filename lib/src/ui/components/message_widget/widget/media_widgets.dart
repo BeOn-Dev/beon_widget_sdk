@@ -34,7 +34,7 @@ class MyChatImageWidget extends StatelessWidget {
     }
 
     return InkWell(
-      onTap: (){
+      onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -80,52 +80,6 @@ class MyChatImageWidget extends StatelessWidget {
 }
 
 /// Video widget for chat messages
-class ChatVideoWidget extends StatelessWidget {
-  final VideoModel data;
-
-  const ChatVideoWidget({super.key, required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () async {
-        if (data.url.isNotEmpty) {
-          final uri = Uri.parse(data.url);
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          }
-        }
-      },
-      child: Container(
-        height: 150,
-        width: 200,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.play_circle_fill, size: 48, color: Colors.grey.shade600),
-            const SizedBox(height: 8),
-            Text(
-              'Video',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class VideoModel {
-  final String url;
-  final bool isLocal;
-
-  VideoModel({required this.url, this.isLocal = false});
-}
-
 /// Document widget for chat messages
 class DocumentMessageWidget extends StatelessWidget {
   final String doc;

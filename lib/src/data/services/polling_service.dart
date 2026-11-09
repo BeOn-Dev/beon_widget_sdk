@@ -45,30 +45,29 @@ class PollingService {
     if (!_isPolling) return;
 
     try {
-      final lastTime = _lastMessageTimeStr != null
-          ? DateTime.tryParse(_lastMessageTimeStr!)
-          : null;
-
-      final (messages, _) = await _chatService.fetchHistory(
-        limit: 10,
-        before: lastTime,
-      );
+      final (messages, _) = await _chatService.fetchHistory(limit: 10);
 
       if (messages.isNotEmpty) {
         // Filter out messages we've already seen
         final newMessages = _lastMessageTimeStr == null
             ? messages
             : messages.where((m) {
-                final msgTime = m.createdAt != null ? DateTime.tryParse(m.createdAt!) : null;
+                final msgTime = m.createdAt != null
+                    ? DateTime.tryParse(m.createdAt!)
+                    : null;
                 final lastParsed = DateTime.tryParse(_lastMessageTimeStr!);
                 if (msgTime == null || lastParsed == null) return true;
                 return msgTime.isAfter(lastParsed);
               }).toList();
 
-
-
         if (newMessages.isNotEmpty) {
-          _lastMessageTimeStr = newMessages.first.createdAt;
+          _lastMessageTimeStr = newMessages
+              .map((m) => m.createdAt)
+              .whereType<String>()
+              .fold<String>(
+                _lastMessageTimeStr ?? '',
+                (latest, value) => value.compareTo(latest) > 0 ? value : latest,
+              );
           _messageController.add(newMessages);
         }
       }

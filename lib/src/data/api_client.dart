@@ -21,14 +21,17 @@ class BeonApiClient {
         },
       ),
     );
-    _dio.interceptors.add(PrettyDioLogger(
+    _dio.interceptors.add(
+      PrettyDioLogger(
         requestHeader: true,
         requestBody: true,
         responseBody: true,
         responseHeader: false,
         error: true,
         compact: true,
-        maxWidth: 90));
+        maxWidth: 90,
+      ),
+    );
     _dio.interceptors.addAll([
       _AuthInterceptor(config.apiKey, () => _visitorId),
       _ErrorLoggingInterceptor(),
@@ -99,9 +102,7 @@ class BeonApiClient {
     return _dio.post<T>(
       path,
       data: formData,
-      options: Options(
-        contentType: 'multipart/form-data',
-      ),
+      options: Options(contentType: 'multipart/form-data'),
     );
   }
 
@@ -143,7 +144,8 @@ class _ErrorLoggingInterceptor extends Interceptor {
     final responseData = err.response?.data;
 
     AppFunctions.logPrint(
-      message: '❌ API ERROR [$method] $uri\n'
+      message:
+          '❌ API ERROR [$method] $uri\n'
           '   Status: $statusCode\n'
           '   Type: $errorType\n'
           '   Message: ${err.message}\n'
@@ -199,7 +201,9 @@ class _RetryInterceptor extends Interceptor {
     final retryCount = requestOptions.extra['retryCount'] ?? 0;
 
     // Only retry on network errors or 5xx errors
-    final shouldRetry = (err.type == DioExceptionType.connectionTimeout ||
+    final shouldRetry =
+        requestOptions.method.toUpperCase() == 'GET' &&
+        (err.type == DioExceptionType.connectionTimeout ||
             err.type == DioExceptionType.connectionError ||
             err.type == DioExceptionType.receiveTimeout ||
             (err.response?.statusCode ?? 0) >= 500) &&
@@ -228,11 +232,7 @@ class BeonApiException implements Exception {
   final int? statusCode;
   final dynamic data;
 
-  BeonApiException({
-    required this.message,
-    this.statusCode,
-    this.data,
-  });
+  BeonApiException({required this.message, this.statusCode, this.data});
 
   factory BeonApiException.fromDioError(DioException error) {
     String message;

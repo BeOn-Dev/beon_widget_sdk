@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart' hide WidgetState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/beon_config.dart';
-import '../config/beon_theme.dart';
 import '../config/script_loader.dart';
-import '../models/message.dart';
 import '../providers/providers.dart';
-import '../providers/chat_state.dart';
 import '../providers/widget_state.dart';
+import '../providers/chat_state.dart';
 import 'launcher_button.dart';
 import 'chat_window.dart';
 import 'pre_chat_form.dart';
-import 'components/message_widget/message_widget.dart';
-import 'components/message_input.dart';
-import 'components/powered_by_footer.dart';
+import 'components/support_chat_body.dart';
+import 'components/support_style.dart';
+import 'components/chat_header.dart';
 
 /// The main Beon Chat Widget that can be embedded in any Flutter app.
 ///
@@ -55,6 +53,9 @@ class BeonChatWidget extends StatelessWidget {
     }
 
     return ProviderScope(
+      key: ValueKey(
+        '${effectiveConfig.baseUrl}:${effectiveConfig.apiKey}:${effectiveConfig.userId ?? 'visitor'}',
+      ),
       overrides: [configProvider.overrideWithValue(effectiveConfig)],
       child: Directionality(
         textDirection: effectiveConfig.textDirection,
@@ -108,6 +109,14 @@ class _BeonChatWidgetContentState extends ConsumerState<_BeonChatWidgetContent>
     super.dispose();
   }
 
+  void _toggleWindow() {
+    ref.read(widgetStateProvider.notifier).toggle();
+    if (ref.read(widgetStateProvider).isOpen &&
+        ref.read(visitorProvider).hasValue) {
+      ref.read(chatStateProvider.notifier).refresh();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final widgetState = ref.watch(widgetStateProvider);
@@ -142,44 +151,68 @@ class _BeonChatWidgetContentState extends ConsumerState<_BeonChatWidgetContent>
       final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
       return Scaffold(
         appBar: AppBar(
-          toolbarHeight: tablet ? 96 : null,
-          foregroundColor: tablet ? const Color(0xFF020F15) : null,
-          title: Text(
-            effectiveConfig.headerTitle ?? 'Chat',
-            style: tablet
-                ? const TextStyle(
-                    fontSize: 25,
-                    height: 30 / 25,
-                    color: Color(0xFF020F15),
-                    fontWeight: FontWeight.w500,
-                  )
-                : const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-          ),
-          backgroundColor: tablet ? Colors.white : effectiveConfig.primaryColor,
+          toolbarHeight: tablet ? 96 : 64,
+          foregroundColor: SupportStyle.ink,
+          title: !tablet
+              ? ChatHeader(
+                  title: effectiveConfig.headerTitle ?? 'Support',
+                  subtitle: effectiveConfig.headerSubtitle,
+                  primaryColor: effectiveConfig.primaryColor,
+                  avatarUrl: effectiveConfig.avatarUrl,
+                  locale: effectiveConfig.locale,
+                  showClose: false,
+                  padding: EdgeInsets.zero,
+                  onClose: () {},
+                )
+              : Text(
+                  effectiveConfig.headerTitle ?? 'Chat',
+                  style: tablet
+                      ? const TextStyle(
+                          fontSize: 25,
+                          height: 30 / 25,
+                          color: Color(0xFF020F15),
+                          fontWeight: FontWeight.w500,
+                        )
+                      : const TextStyle(
+                          color: SupportStyle.ink,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                ),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
           elevation: 0,
-          centerTitle: !tablet,
+          centerTitle: false,
         ),
-        body: visitorAsync.when(
-          data: (visitor) {
-            if (shouldShowPreChat) {
-              return const PreChatForm();
-            }
-            return _FullScreenChatBody(visitorId: visitor.id);
-          },
-          loading: () => Center(
-            child: tablet
-                ? CircularProgressIndicator.adaptive(
-                    valueColor: AlwaysStoppedAnimation(
-                      effectiveConfig.primaryColor,
-                    ),
-                  )
-                : const CircularProgressIndicator(),
-          ),
-          error: (_, __) => const _ErrorWidget(),
-        ),
+        body: effectiveConfigAsync.isLoading
+            ? Center(
+                child: CircularProgressIndicator.adaptive(
+                  valueColor: AlwaysStoppedAnimation(
+                    effectiveConfig.primaryColor,
+                  ),
+                ),
+              )
+            : visitorAsync.when(
+                data: (visitor) {
+                  if (shouldShowPreChat) {
+                    return const PreChatForm();
+                  }
+                  return SafeArea(
+                    top: false,
+                    child: SupportChatBody(config: effectiveConfig),
+                  );
+                },
+                loading: () => Center(
+                  child: tablet
+                      ? CircularProgressIndicator.adaptive(
+                          valueColor: AlwaysStoppedAnimation(
+                            effectiveConfig.primaryColor,
+                          ),
+                        )
+                      : const CircularProgressIndicator(),
+                ),
+                error: (_, __) => const _ErrorWidget(),
+              ),
       );
     }
 
@@ -232,7 +265,7 @@ class _BeonChatWidgetContentState extends ConsumerState<_BeonChatWidgetContent>
             bottom: 16.0,
             child: LauncherButton(
               isOpen: widgetState.isOpen,
-              onPressed: () => ref.read(widgetStateProvider.notifier).toggle(),
+              onPressed: _toggleWindow,
               primaryColor: effectiveConfig.primaryColor,
               unreadCount: widgetState.unreadCount,
             ),
@@ -282,7 +315,7 @@ class _BeonChatWidgetContentState extends ConsumerState<_BeonChatWidgetContent>
             bottom: 16.0,
             child: LauncherButton(
               isOpen: widgetState.isOpen,
-              onPressed: () => ref.read(widgetStateProvider.notifier).toggle(),
+              onPressed: _toggleWindow,
               primaryColor: widget.config.primaryColor,
               unreadCount: 0,
             ),
@@ -397,146 +430,6 @@ class _ChannelErrorWidget extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Fullscreen chat body without header (header is in AppBar)
-class _FullScreenChatBody extends ConsumerWidget {
-  final String visitorId;
-
-  const _FullScreenChatBody({required this.visitorId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final chatState = ref.watch(chatStateProvider);
-    final theme = ref.watch(themeProvider);
-
-    return Column(
-      children: [
-        // Messages area
-        Expanded(child: _buildMessageArea(context, ref, chatState, theme)),
-
-        // Input area
-        MessageInput(
-          onSend: (content) {
-            ref.read(chatStateProvider.notifier).sendMessage(content);
-          },
-          onAttachment: (filePath, fileName, type) {
-            ref
-                .read(chatStateProvider.notifier)
-                .sendMessageWithAttachment(
-                  filePath: filePath,
-                  fileName: fileName,
-                  type: type,
-                );
-          },
-
-          isSending: chatState.isSending,
-          primaryColor: theme.primaryColor,
-        ),
-
-        const PoweredByFooter(),
-      ],
-    );
-  }
-
-  Widget _buildMessageArea(
-    BuildContext context,
-    WidgetRef ref,
-    ChatState chatState,
-    BeonTheme theme,
-  ) {
-    if (chatState.isLoading && chatState.messages.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (chatState.error != null && chatState.messages.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(
-              'Unable to load messages',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () {
-                ref.read(chatStateProvider.notifier).refresh();
-              },
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (chatState.messages.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: theme.primaryColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.chat_bubble_outline,
-                  size: 32,
-                  color: theme.primaryColor,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Start a conversation',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return ListView.builder(
-      reverse: true,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: chatState.messages.length + (chatState.isLoadingMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (chatState.isLoadingMore && index == chatState.messages.length) {
-          return const Padding(
-            padding: EdgeInsets.all(16),
-            child: Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          );
-        }
-
-        final message = chatState.messages[index];
-        final isMyMessage = message.messageType == MessageType.myMessage;
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Align(
-            alignment: isMyMessage
-                ? Alignment.centerRight
-                : Alignment.centerLeft,
-            child: MessageBubble(isMyMessage: isMyMessage, message: message),
-          ),
-        );
-      },
     );
   }
 }

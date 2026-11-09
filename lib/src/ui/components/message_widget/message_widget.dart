@@ -6,39 +6,54 @@ import '../../../models/message.dart';
 import '../../../utils/app_functions/app_functions.dart';
 import '../../../utils/app_padding/app_padding.dart';
 import '../../../utils/app_colors.dart';
+import '../support_style.dart';
+import '../support_interactive_message.dart';
+import '../support_video_message.dart';
 import 'widget/reply_message_widget/reply_message_widget.dart';
 import 'widget/media_widgets.dart';
-
-
-
 
 class MessageBubble extends StatelessWidget {
   final bool isMyMessage;
   final Message message;
-
+  final Color primaryColor;
+  final ValueChanged<String>? onReply;
+  final bool actionsEnabled;
+  final String locale;
   const MessageBubble({
     super.key,
     required this.isMyMessage,
     required this.message,
+    this.primaryColor = const Color(0xFF017DC0),
+    this.onReply,
+    this.actionsEnabled = true,
+    this.locale = 'en',
   });
-
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-
-      child: ConstrainedBox(
-        constraints:
-            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-        child: Stack(
-          clipBehavior: Clip.none,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final maxWidth = constraints.maxWidth.isFinite
+          ? constraints.maxWidth * .85
+          : 320.0;
+      return ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth.clamp(0, 480)),
+        child: Column(
+          crossAxisAlignment: isMyMessage
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: AppPadding.padding8(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: isMyMessage
-                        ? AppColors.messageBackground : Colors.grey.shade100,
-                border: isMyMessage ? null : Border.all(color: Colors.grey),
+                color: isMyMessage ? primaryColor : Colors.white,
+                borderRadius: BorderRadiusDirectional.only(
+                  topStart: Radius.circular(isMyMessage ? 20 : 4),
+                  topEnd: Radius.circular(isMyMessage ? 4 : 20),
+                  bottomStart: const Radius.circular(20),
+                  bottomEnd: const Radius.circular(20),
+                ),
+                border: Border.all(color: SupportStyle.border),
+                boxShadow: const [SupportStyle.shadow],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -46,78 +61,38 @@ class MessageBubble extends StatelessWidget {
                 children: [
                   if (message.replay != null)
                     ReplyMessageWidget(replyMessage: message.replay),
-                  MessageContent(message: message),
-                  AppSpacing.verticalSpace(8),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // DateTimeMessageWidget(dateTime: message.createdAt ?? ''),
-AppSpacing.verticalSpace(2),
-                      Row(
-                        children: [
-                          DateTimeMessageWidget(dateTime: message.createdAt??''),
-                          MessageStatusIcon(
-                            status: message.messageStatus,
-                            messageId: message.id,
-                          ),
-                        ],
-                      ),
-                    ],
+                  MessageContent(
+                    message: message,
+                    locale: locale,
+                    primaryColor: primaryColor,
+                    onReply: onReply,
+                    actionsEnabled: actionsEnabled,
+                    textColor: isMyMessage ? Colors.white : SupportStyle.ink,
                   ),
                 ],
               ),
             ),
-
-            /// Reaction Emoji floating 👇
-            if (message.react != null &&
-                (message.react?.emoji ?? "").isNotEmpty)
-              Positioned(
-                bottom: -14,
-                right: isMyMessage ? 4 : null,
-                left: !isMyMessage ? 4 : null,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+            const SizedBox(height: 6),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DateTimeMessageWidget(dateTime: message.createdAt ?? ''),
+                if (isMyMessage) ...[
+                  const SizedBox(width: 4),
+                  MessageStatusIcon(
+                    status: message.messageStatus,
+                    messageId: message.id,
                   ),
-                  child: Builder(
-                    builder: (context) {
-                      try {
-                        // Safely render emoji with additional sanitization
-                        final safeEmoji = AppFunctions.sanitizeString(
-                          message.react?.emoji ?? "",
-                        );
-                        return Text(
-                          safeEmoji,
-                          style: const TextStyle(fontSize: 16),
-                        );
-                      } catch (e) {
-                        // If emoji rendering fails, show a fallback
-                        AppFunctions.logPrint(
-                          message:
-                              "Error rendering emoji reaction: ${e.toString()}",
-                        );
-                        return const SizedBox.shrink();
-                      }
-                    },
-                  ),
-                ),
-              ),
+                ],
+              ],
+            ),
+            if ((message.react?.emoji ?? '').isNotEmpty)
+              Text(AppFunctions.sanitizeString(message.react!.emoji!)),
           ],
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
 }
 
 /// --------------------
@@ -126,31 +101,54 @@ AppSpacing.verticalSpace(2),
 class MessageContent extends StatelessWidget {
   final Message message;
 
-  const MessageContent({super.key, required this.message});
+  final Color? textColor;
+  final ValueChanged<String>? onReply;
+  final bool actionsEnabled;
+  final String locale;
+  final Color primaryColor;
+  const MessageContent({
+    super.key,
+    required this.message,
+    this.textColor,
+    this.onReply,
+    this.actionsEnabled = true,
+    this.locale = 'en',
+    this.primaryColor = const Color(0xFF017DC0),
+  });
 
   @override
   Widget build(BuildContext context) {
-    bool isLocal = (message.id ?? 0) < 0;
+    bool isLocal =
+        message.localPath != null && !(message.body ?? '').startsWith('http') ||
+        (message.id ?? 0) < 0;
     switch (message.type) {
+      case SendMessageType.interactive:
+        return SupportInteractiveMessage(
+          body: message.body ?? '',
+          textColor: textColor,
+          onReply: message.messageType == MessageType.myMessage
+              ? null
+              : onReply,
+          enabled: actionsEnabled,
+        );
       case SendMessageType.text:
       case SendMessageType.note:
         // Extra sanitization for message body (already sanitized in fromJson, but double-check)
         final safeBody = AppFunctions.sanitizeString(message.body ?? '');
         return Linkify(
           onOpen: (link) => AppFunctions.launchMyUrl(url: link.url),
-          linkStyle:TextStyle(
-            color: Colors.blue,
+          linkStyle: TextStyle(
+            color: textColor ?? Colors.blue,
             fontSize: 14,
             height: 1.4,
           ),
           text: safeBody,
           style: TextStyle(
-            color:  AppColors.greyAccent ,
+            color: textColor ?? SupportStyle.ink,
             fontSize: 14,
             height: 1.4,
           ),
           maxLines: 10000000,
-
         );
 
       case SendMessageType.image:
@@ -169,8 +167,11 @@ class MessageContent extends StatelessWidget {
         );
 
       case SendMessageType.video:
-        return ChatVideoWidget(
-          data: VideoModel(url: message.body ?? '', isLocal: isLocal),
+        return SupportVideoMessage(
+          source: message.body ?? '',
+          isLocal: isLocal,
+          locale: locale,
+          primaryColor: primaryColor,
         );
 
       case SendMessageType.audio:
@@ -213,19 +214,18 @@ class MessageContent extends StatelessWidget {
         final safeBody = AppFunctions.sanitizeString(message.body ?? '');
         return Linkify(
           onOpen: (link) => AppFunctions.launchMyUrl(url: link.url),
-          linkStyle:TextStyle(
-            color: Colors.blue,
+          linkStyle: TextStyle(
+            color: textColor ?? Colors.blue,
             fontSize: 14,
             height: 1.4,
           ),
           text: safeBody,
           style: TextStyle(
-            color:  AppColors.greyAccent ,
+            color: textColor ?? SupportStyle.ink,
             fontSize: 14,
             height: 1.4,
           ),
           maxLines: 10000000,
-
         );
     }
   }
@@ -247,7 +247,7 @@ class MessageStatusIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // لو لسه بيبعت الرسالة (id = -1)
-    if (messageId == -1) {
+    if (status == MessageStatus.sending) {
       return const SizedBox(
         width: 16,
         height: 16,
@@ -258,12 +258,16 @@ class MessageStatusIcon extends StatelessWidget {
       );
     }
 
+    if (status == MessageStatus.failed) {
+      return const Icon(Icons.error_outline, color: Colors.red, size: 16);
+    }
     return Icon(
       (status == MessageStatus.read || status == MessageStatus.delivered)
           ? Icons.done_all
           : Icons.done,
-      color:
-          status == MessageStatus.read ? AppColors.mainColor : AppColors.grey,
+      color: status == MessageStatus.read
+          ? AppColors.mainColor
+          : AppColors.grey,
       size: 16,
     );
   }

@@ -32,3 +32,5 @@ export 'src/models/channel_config.dart'
 
 // Theme customization
 export 'src/config/beon_theme.dart' show BeonTheme;
+
+export 'src/models/beon_user.dart' show BeonUser;

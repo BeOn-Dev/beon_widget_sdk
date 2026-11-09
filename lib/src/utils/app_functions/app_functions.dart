@@ -1,5 +1,3 @@
-
-
 import 'dart:developer';
 
 import 'package:flutter/cupertino.dart';
@@ -14,9 +12,11 @@ class AppFunctions {
   static void logPrint({required String message}) {
     log(message);
   }
+
   static String getFileNameFromUrl(String url) {
     return url.split('/').last;
   }
+
   static String getFileExtension(String url) {
     final uri = Uri.parse(url);
     final path = uri.path; // ده بيرجع الجزء الأخير من اللينك
@@ -27,6 +27,7 @@ class AppFunctions {
     }
     return '';
   }
+
   static MessageStatus getMessageStatus({required String status}) {
     switch (status) {
       case 'sending':
@@ -59,6 +60,7 @@ class AppFunctions {
         return MessageType.clientMessage;
     }
   }
+
   static String sanitizeString(String? input) {
     if (input == null || input.isEmpty) return "";
 
@@ -83,13 +85,21 @@ class AppFunctions {
       return sanitized.toString();
     } catch (e) {
       AppFunctions.logPrint(
-          message: "Error sanitizing string: ${e.toString()}");
+        message: "Error sanitizing string: ${e.toString()}",
+      );
       // Return a safe fallback - filter out non-ASCII if all else fails
       return input.replaceAll(RegExp(r'[^\x00-\x7F]+'), '');
     }
   }
+
   static SendMessageType getSendMessageType({required String type}) {
     switch (type) {
+      case "interactive":
+      case "interactive_list":
+      case "button":
+        return SendMessageType.interactive;
+      case "file":
+        return SendMessageType.document;
       case "text":
         return SendMessageType.text;
       case "image":
@@ -113,7 +123,6 @@ class AppFunctions {
     }
   }
 
-
   /// Sanitizes text by removing unpaired UTF-16 surrogates
   ///
   /// Prevents iOS crash: "Invalid JSON message, encoding failed"
@@ -134,8 +143,8 @@ class AppFunctions {
       Navigator.pop(context);
     } else {
       logPrint(
-          message:
-              "⚠️ Navigation warning: Attempted to pop when no route exists");
+        message: "⚠️ Navigation warning: Attempted to pop when no route exists",
+      );
     }
   }
 
@@ -148,18 +157,14 @@ class AppFunctions {
     }
   }
 
-
   static String convertMessageDateTime({required String date}) {
     try {
       DateTime dateTime = DateTime.parse(date).toLocal();
 
-      String formatted = DateFormat('MM/dd/yyyy, hh:mm a').format(
-        dateTime,
-      );
+      String formatted = DateFormat('MM/dd/yyyy, hh:mm a').format(dateTime);
       return formatted;
     } catch (e) {
       return date;
     }
   }
-
 }

@@ -1,260 +1,149 @@
 import 'dart:async';
 import 'dart:convert';
-
-import 'package:http/http.dart' as http;
 import 'package:simple_flutter_reverb/simple_flutter_reverb_options.dart';
-import 'package:web_socket_channel/status.dart' as status;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import '../../utils/app_functions/app_functions.dart';
-
 abstract class ReverbService {
-  void listen(void Function(dynamic) onData, String channelName,
-      {bool isPrivate = false});
-
+  void listen(
+    void Function(dynamic) onData,
+    String channelName, {
+    bool isPrivate = false,
+  });
   void close();
 }
 
+/// Public widget channels reconnect and resubscribe after network interruptions.
 class SimpleFlutterReverb implements ReverbService {
-  late final WebSocketChannel _channel;
-  final SimpleFlutterReverbOptions options = SimpleFlutterReverbOptions(
-    scheme: "wss",
-    host: "v3.api.beon.chat",
-    port: "443",
-    appKey: "t2vthpcpevqgpzw70dku",
-  );
-
-  bool _isClosed = false;
-
-  // Track stream subscription for proper cleanup
-  StreamSubscription? _streamSubscription;
-
-  // Singleton HTTP client to prevent file descriptor leaks
-  static http.Client? _httpClient;
-
-  SimpleFlutterReverb() {
-    try {
-      final wsUrl = _constructWebSocketUrl();
-      _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
-      AppFunctions.logPrint(message: '✅ WebSocket connecting to: $wsUrl');
-    } catch (e) {
-      AppFunctions.logPrint(message: '❌ Failed to connect to WebSocket: $e');
-      rethrow;
-    }
-  }
-
-  String _constructWebSocketUrl() {
-    return '${options.scheme}://${options.host}:${options.port}/app/${options.appKey}';
-  }
-
-  void _subscribe(String channelName, String? broadcastAuthToken,
-      {bool isPrivate = false}) {
-    try {
-      if (_isClosed) {
-        AppFunctions.logPrint(
-            message: '⚠️ Cannot subscribe: connection is closed');
-        return;
-      }
-
-      final subscription = {
-        "event": "pusher:subscribe",
-        "data": isPrivate
-            ? {"channel": channelName, "auth": broadcastAuthToken}
-            : {"channel": channelName},
-      };
-      _channel.sink.add(jsonEncode(subscription));
-
-      AppFunctions.logPrint(
-          message:
-          '📡 Subscribing to channel: $channelName (private: $isPrivate)');
-    } catch (e) {
-      AppFunctions.logPrint(message: '❌ Failed to subscribe to channel: $e');
-      rethrow;
-    }
-  }
+  final SimpleFlutterReverbOptions options;
+  final WebSocketChannel Function(Uri) _connector;
+  WebSocketChannel? _channel;
+  StreamSubscription? _subscription;
+  Timer? _reconnectTimer;
+  Timer? _heartbeat;
+  String? _channelName;
+  void Function(dynamic)? _onData;
+  bool _closed = false;
+  int _attempt = 0;
+  SimpleFlutterReverb({
+    Uri? endpoint,
+    WebSocketChannel Function(Uri)? connector,
+  }) : options = SimpleFlutterReverbOptions(
+         scheme: endpoint?.scheme ?? 'wss',
+         host: endpoint?.host ?? 'ws.beon.chat',
+         port: endpoint?.hasPort == true ? endpoint!.port.toString() : '443',
+         appKey: 't2vthpcpevqgpzw70dku',
+       ),
+       _connector = connector ?? WebSocketChannel.connect;
 
   @override
-  void listen(void Function(dynamic) onData, String channelName,
-      {bool isPrivate = false}) {
+  void listen(
+    void Function(dynamic) onData,
+    String channelName, {
+    bool isPrivate = false,
+  }) {
+    if (_closed) return;
+    if (isPrivate) {
+      throw UnsupportedError('The widget SDK uses public visitor channels.');
+    }
+    _onData = onData;
+    _channelName = channelName;
+    _connect();
+  }
+
+  Future<void> _connect() async {
+    if (_closed || _channelName == null) return;
+    _reconnectTimer?.cancel();
+    // Detach immediately; socket cleanup may finish after the remote close.
+    // Reconnection must not wait for that cleanup future to complete.
+    unawaited(_subscription?.cancel());
+    _subscription = null;
+    if (_closed) return;
     try {
-      if (_isClosed) {
-        AppFunctions.logPrint(
-            message: '⚠️ Cannot listen: connection is closed');
-        return;
-      }
-
-      final channelPrefix = options.usePrefix ? options.privatePrefix : '';
-      final fullChannelName =
-      isPrivate ? '$channelPrefix$channelName' : channelName;
-
-      _subscribe(channelName, null);
-
-      // Cancel any existing subscription before creating a new one
-      _streamSubscription?.cancel();
-
-      _streamSubscription = _channel.stream.listen(
-            (message) async {
-          try {
-            final Map<String, dynamic> jsonMessage = jsonDecode(message);
-            final response = WebsocketResponse.fromJson(jsonMessage);
-
-            if (response.event == 'pusher:connection_established') {
-              final socketId = response.data?['socket_id'];
-
-              if (socketId == null) {
-                throw Exception('Socket ID is missing');
-              }
-
-              AppFunctions.logPrint(
-                  message:
-                  '✅ Connection established with socket_id: $socketId');
-
-              if (isPrivate) {
-                final authToken =
-                await _authenticate(socketId, fullChannelName);
-                if (authToken != null) {
-                  _subscribe(fullChannelName, authToken, isPrivate: isPrivate);
-                } else {
-                  AppFunctions.logPrint(
-                      message: '❌ Authentication failed for private channel');
-                }
-              } else {
-                _subscribe(fullChannelName, null, isPrivate: isPrivate);
-              }
-            } else if (response.event == 'pusher:ping') {
-              if (!_isClosed) {
-                _channel.sink.add(jsonEncode({'event': 'pusher:pong'}));
-                AppFunctions.logPrint(message: '🏓 Pong sent');
-              }
-            } else if (response.event == 'pusher:subscription_succeeded') {
-              AppFunctions.logPrint(
-                  message: '✅ Subscription succeeded for: $channelName');
-            }
-
-            onData(response);
-          } catch (e) {
-            AppFunctions.logPrint(
-                message: '❌ Error processing message: ${e.toString()}');
-          }
-        },
-        onError: (error) {
-          AppFunctions.logPrint(message: "❌ Stream Error: $error");
-        },
-        onDone: () {
-          _isClosed = true;
-          AppFunctions.logPrint(
-              message: '🔌 Connection closed for channel: $channelName');
-        },
+      final uri = Uri.parse(
+        '${options.scheme}://${options.host}:${options.port}/app/${options.appKey}',
       );
-
-      AppFunctions.logPrint(message: '👂 Listening to channel: $channelName');
-    } catch (e) {
-      AppFunctions.logPrint(message: '❌ Failed to listen to WebSocket: $e');
-      rethrow;
+      final channel = _connector(uri);
+      _channel = channel;
+      _subscription = channel.stream.listen(
+        _receive,
+        onError: (_) => _reconnect(),
+        onDone: _reconnect,
+      );
+      await channel.ready;
+    } catch (_) {
+      _reconnect();
     }
   }
 
-  Future<String?> _authenticate(String socketId, String channelName) async {
+  void _receive(dynamic raw) {
+    if (_closed) return;
     try {
-      if (options.authToken == null) {
-        throw Exception('Auth Token is missing');
-      } else if (options.authUrl == null) {
-        throw Exception('Auth URL is missing');
-      }
-
-      var token = options.authToken;
-      if (options.authToken is Future<String?>) {
-        token = await options.authToken;
-      } else if (options.authToken is String) {
-        token = options.authToken;
-      } else {
-        throw Exception('Parameter authToken is not a string or a function');
-      }
-
-      AppFunctions.logPrint(
-          message: '🔐 Authenticating for channel: $channelName');
-
-      // Use singleton HTTP client to prevent file descriptor leaks
-      _httpClient ??= http.Client();
-
-      final response = await _httpClient!.post(
-        Uri.parse(options.authUrl!),
-        headers: {'Authorization': 'Bearer $token'},
-        body: {'socket_id': socketId, 'channel_name': channelName},
+      final event = WebsocketResponse.fromJson(
+        Map<String, dynamic>.from(jsonDecode(raw)),
       );
-
-      if (response.statusCode == 200) {
-        AppFunctions.logPrint(message: '✅ Authentication successful');
-        return jsonDecode(response.body)['auth'];
-      } else {
-        throw Exception('Authentication failed: ${response.statusCode}');
+      if (event.event == 'pusher:connection_established') {
+        _attempt = 0;
+        _send({
+          'event': 'pusher:subscribe',
+          'data': {'channel': _channelName},
+        });
+        _heartbeat?.cancel();
+        _heartbeat = Timer.periodic(
+          const Duration(seconds: 25),
+          (_) => _send({'event': 'pusher:ping', 'data': {}}),
+        );
+      } else if (event.event == 'pusher:ping') {
+        _send({'event': 'pusher:pong', 'data': {}});
       }
-    } catch (e) {
-      AppFunctions.logPrint(message: '❌ Authentication error: $e');
-      return null;
+      _onData?.call(event);
+    } catch (_) {
+      /* Ignore malformed socket frames without dropping the stream. */
     }
+  }
+
+  void _send(Map<String, dynamic> payload) {
+    if (_closed) return;
+    try {
+      _channel?.sink.add(jsonEncode(payload));
+    } catch (_) {
+      _reconnect();
+    }
+  }
+
+  void _reconnect() {
+    if (_closed || _reconnectTimer?.isActive == true) return;
+    _heartbeat?.cancel();
+    _onData?.call(WebsocketResponse(event: 'beon:disconnected'));
+    final delay = Duration(seconds: (1 << _attempt.clamp(0, 5)).clamp(1, 30));
+    _attempt++;
+    _reconnectTimer = Timer(delay, () {
+      _channel?.sink.close();
+      _connect();
+    });
   }
 
   @override
   void close() {
-    try {
-      if (_isClosed) {
-        AppFunctions.logPrint(message: 'ℹ️ Connection already closed');
-        return;
-      }
-
-      _isClosed = true;
-
-      // Cancel stream subscription to prevent memory leaks
-      _streamSubscription?.cancel();
-      _streamSubscription = null;
-
-      // Close WebSocket channel
-      _channel.sink.close(status.normalClosure);
-
-      AppFunctions.logPrint(message: '✅ WebSocket closed successfully');
-    } catch (e) {
-      AppFunctions.logPrint(message: '❌ Failed to close WebSocket: $e');
-    }
+    if (_closed) return;
+    _closed = true;
+    _reconnectTimer?.cancel();
+    _heartbeat?.cancel();
+    _subscription?.cancel();
+    _channel?.sink.close();
+    _onData = null;
   }
 }
 
 class WebsocketResponse {
   final String event;
   final Map<String, dynamic>? data;
-
   WebsocketResponse({required this.event, this.data});
-
   factory WebsocketResponse.fromJson(Map<String, dynamic> json) {
-    Map<String, dynamic>? parsedData;
-
-    if (json['data'] != null) {
-      try {
-        // Check if data is already a Map (already parsed)
-        if (json['data'] is Map) {
-          parsedData = Map<String, dynamic>.from(json['data']);
-        }
-        // If data is a String, decode it as JSON
-        else if (json['data'] is String) {
-          parsedData = jsonDecode(json['data']) as Map<String, dynamic>;
-        }
-        // Otherwise, try to convert to string and decode
-        else {
-          AppFunctions.logPrint(
-              message:
-              "⚠️ Unexpected data type in WebSocket: ${json['data'].runtimeType}");
-          parsedData = null;
-        }
-      } catch (e) {
-        AppFunctions.logPrint(
-            message: "❌ Error parsing WebSocket data: $e - Data: ${json['data']}");
-        parsedData = null;
-      }
-    }
-
+    final raw = json['data'];
+    final decoded = raw is String ? jsonDecode(raw) : raw;
     return WebsocketResponse(
-      event: json['event'],
-      data: parsedData,
+      event: '${json['event'] ?? ''}',
+      data: decoded is Map ? Map<String, dynamic>.from(decoded) : null,
     );
   }
 }

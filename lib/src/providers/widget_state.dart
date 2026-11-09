@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'providers.dart';
-import 'chat_state.dart';
 
 /// Current view of the widget
 enum WidgetView {
@@ -74,10 +73,7 @@ class WidgetStateNotifier extends StateNotifier<WidgetState> {
       view = WidgetView.chat;
     }
 
-    state = state.copyWith(
-      isOpen: true,
-      currentView: view,
-    );
+    state = state.copyWith(isOpen: true, currentView: view);
   }
 
   /// Toggle widget open/closed
@@ -100,8 +96,6 @@ class WidgetStateNotifier extends StateNotifier<WidgetState> {
       view = WidgetView.preChat;
     } else {
       view = WidgetView.chat;
-      // Refresh messages when opening chat view
-      _ref.read(chatStateProvider.notifier).refresh();
     }
 
     state = state.copyWith(
@@ -114,10 +108,7 @@ class WidgetStateNotifier extends StateNotifier<WidgetState> {
 
   /// Close the widget
   void close() {
-    state = state.copyWith(
-      isOpen: false,
-      isAnimating: true,
-    );
+    state = state.copyWith(isOpen: false, isAnimating: true);
   }
 
   /// Navigate to chat view
@@ -156,5 +147,5 @@ class WidgetStateNotifier extends StateNotifier<WidgetState> {
 /// Provider for widget state
 final widgetStateProvider =
     StateNotifierProvider<WidgetStateNotifier, WidgetState>((ref) {
-  return WidgetStateNotifier(ref);
-});
+      return WidgetStateNotifier(ref);
+    }, dependencies: [configProvider, authServiceProvider]);

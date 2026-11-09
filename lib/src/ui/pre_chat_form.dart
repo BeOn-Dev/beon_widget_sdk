@@ -7,6 +7,8 @@ import '../providers/widget_state.dart';
 import '../models/visitor.dart';
 import '../utils/validators.dart';
 import 'components/chat_header.dart';
+import 'components/support_style.dart';
+import 'components/support_input_style.dart';
 import 'components/powered_by_footer.dart';
 
 /// Pre-chat form for collecting visitor information
@@ -84,6 +86,7 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
             primaryColor: theme.primaryColor,
             onClose: () => ref.read(widgetStateProvider.notifier).close(),
             showWave: true,
+            locale: config.locale,
           ),
 
           // Form
@@ -92,7 +95,7 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
             child: _buildFormFields(config, theme),
           ),
 
-          const PoweredByFooter(),
+          PoweredByFooter(locale: config.locale),
         ],
       ),
     );
@@ -110,13 +113,14 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
           ),
         ),
 
-        const PoweredByFooter(),
+        PoweredByFooter(locale: config.locale),
       ],
     );
   }
 
   /// Form fields (shared between normal and fullscreen modes)
   Widget _buildFormFields(dynamic config, dynamic theme) {
+    final strings = SupportStrings(config.locale as String);
     return Form(
       key: _formKey,
       child: Column(
@@ -126,7 +130,7 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
           if (config.preChatNameEnabled) ...[
             _buildTextField(
               controller: _nameController,
-              label: 'Name',
+              label: strings.text('Name', 'الاسم'),
               icon: Icons.person_outline,
               validator: Validators.validateName,
               textInputAction: TextInputAction.next,
@@ -138,7 +142,7 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
           if (config.preChatEmailEnabled) ...[
             _buildTextField(
               controller: _emailController,
-              label: 'Email',
+              label: strings.text('Email', 'البريد الإلكتروني'),
               icon: Icons.email_outlined,
               validator: Validators.validateEmail,
               keyboardType: TextInputType.emailAddress,
@@ -151,7 +155,7 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
           if (config.preChatPhoneEnabled) ...[
             _buildTextField(
               controller: _phoneController,
-              label: 'Phone',
+              label: strings.text('Phone', 'رقم الهاتف'),
               icon: Icons.phone_outlined,
               validator: Validators.validatePhone,
               keyboardType: TextInputType.phone,
@@ -164,7 +168,7 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
           if (config.preChatMessageEnabled) ...[
             _buildTextField(
               controller: _messageController,
-              label: 'Message',
+              label: strings.text('Message', 'الرسالة'),
               icon: Icons.message_outlined,
               maxLines: 3,
               textInputAction: TextInputAction.done,
@@ -178,7 +182,7 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
 
           // Submit button
           SizedBox(
-            height: 48,
+            height: 44,
             child: ElevatedButton(
               onPressed: _isSubmitting ? null : _submit,
               style: ElevatedButton.styleFrom(
@@ -188,7 +192,7 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
                   alpha: 0.6,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 elevation: 0,
               ),
@@ -201,9 +205,9 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text(
-                      'Start Chat',
-                      style: TextStyle(
+                  : Text(
+                      strings.text('Start Chat', 'بدء المحادثة'),
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -232,34 +236,11 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
       textInputAction: textInputAction,
       maxLines: maxLines,
       onFieldSubmitted: onFieldSubmitted,
-      decoration: InputDecoration(
+      style: SupportInputStyle.text,
+      decoration: SupportInputStyle.decoration(
+        primaryColor: ref.watch(themeProvider).primaryColor,
         labelText: label,
         prefixIcon: Icon(icon, size: 20),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: ref.watch(themeProvider).primaryColor,
-            width: 2,
-          ),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red),
-        ),
-        filled: true,
-        fillColor: Colors.grey.shade50,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
       ),
     );
   }
@@ -278,6 +259,7 @@ class _PreChatFormState extends ConsumerState<PreChatForm> {
         PreChatData(
           name: _nameController.text.trim(),
           phone: _phoneController.text.trim(),
+          email: _emailController.text.trim(),
           initialMessage: _messageController.text.trim().isNotEmpty
               ? _messageController.text.trim()
               : null,

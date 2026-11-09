@@ -184,3 +184,43 @@ The SDK uses:
 ## License
 
 MIT License - see [LICENSE](LICENSE) file.
+
+### Full-screen mobile support
+
+Push `BeonChatWidget(config: BeonConfig(apiKey: apiKey, fullScreen: true))`
+onto your app's Navigator to present support as a full screen with the standard
+back button, keyboard resizing and safe-area handling. The SDK inherits the
+host application's font theme. No Beon dashboard imports or assets are required.
+
+The chat and ticket experience uses the web widget's channel settings.
+`tickets_enabled`, `categories` / `ticket_categories`, and `logo` are read from
+channel validation. `BeonConfig.ticketsEnabled` can explicitly override visibility;
+`ticketCategories` and `avatarUrl` allow host-provided defaults. Tickets require
+an existing conversation. Visitors can filter tickets, create one, read replies
+and reply to open tickets. Agent replies update over the public ticket channel;
+optional polling follows `enablePollingFallback`. Internal notes are excluded.
+
+Use `locale` and `textDirection` for Arabic/English and RTL/LTR presentation.
+No publishing or version change is required for local development.
+
+### Channels for signed-in users
+
+For a channel configured as `users_login`, supply the host's current user:
+
+```dart
+BeonChatWidget(
+  config: BeonConfig(
+    apiKey: supportChannelToken,
+    channelId: expectedSupportChannelId, // Optional guard against a wrong token.
+    fullScreen: true,
+    user: BeonUser(id: currentUser.id, name: currentUser.name,
+      email: currentUser.email, phone: currentUser.phone),
+  ),
+)
+```
+
+The user ID is shared by history, sends and tickets, just like the web widget.
+An authenticated channel skips pre-chat and requires a user identity. Storage is
+scoped to the API endpoint, channel token and user; changing users or channels
+cannot restore another visitor's messages. The SDK never embeds a dashboard
+channel token or reads host login globals itself.

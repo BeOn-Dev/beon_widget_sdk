@@ -3,13 +3,19 @@ import 'package:file_picker/file_picker.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 
 import '../../models/message.dart';
+import 'support_style.dart';
+import 'support_input_style.dart';
+import 'beon_emoji_picker.dart';
+import '../../utils/beon_emoji_policy.dart';
 
 /// Message input component with emoji picker and file attachment
 class MessageInput extends StatefulWidget {
   final Function(String content) onSend;
-  final Function(String filePath, String fileName, SendMessageType type)? onAttachment;
+  final Function(String filePath, String fileName, SendMessageType type)?
+  onAttachment;
   final bool isSending;
   final Color primaryColor;
+  final String locale;
 
   const MessageInput({
     super.key,
@@ -17,6 +23,7 @@ class MessageInput extends StatefulWidget {
     this.onAttachment,
     this.isSending = false,
     required this.primaryColor,
+    this.locale = 'en',
   });
 
   @override
@@ -28,6 +35,8 @@ class _MessageInputState extends State<MessageInput> {
   final _focusNode = FocusNode();
   bool _showEmojiPicker = false;
   bool _hasText = false;
+  bool _attachmentOpen = false;
+  PlatformFile? _pendingFile;
 
   @override
   void initState() {
@@ -51,8 +60,34 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   void _onSend() {
+    if (widget.isSending) return;
+    final pending = _pendingFile;
+    if (pending != null) {
+      final type =
+          [
+            'jpg',
+            'jpeg',
+            'png',
+            'gif',
+            'webp',
+          ].contains(pending.extension?.toLowerCase())
+          ? SendMessageType.image
+          : ['mp4', 'mov', 'webm'].contains(pending.extension?.toLowerCase())
+          ? SendMessageType.video
+          : [
+              'mp3',
+              'm4a',
+              'wav',
+              'ogg',
+            ].contains(pending.extension?.toLowerCase())
+          ? SendMessageType.audio
+          : SendMessageType.document;
+      widget.onAttachment?.call(pending.path!, pending.name, type);
+      setState(() => _pendingFile = null);
+      return;
+    }
     final text = _controller.text.trim();
-    if (text.isEmpty || widget.isSending) return;
+    if (text.isEmpty) return;
 
     widget.onSend(text);
     _controller.clear();
@@ -68,137 +103,132 @@ class _MessageInputState extends State<MessageInput> {
     setState(() => _showEmojiPicker = !_showEmojiPicker);
   }
 
-  void _onEmojiSelected(Category? category, Emoji emoji) {
-    final text = _controller.text;
-    final selection = _controller.selection;
-    final newText = text.replaceRange(
-      selection.start,
-      selection.end,
-      emoji.emoji,
-    );
-    _controller.text = newText;
-    _controller.selection = TextSelection.fromPosition(
-      TextPosition(offset: selection.start + emoji.emoji.length),
-    );
-  }
-
-  void _showAttachmentOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.image),
-              title: const Text('Image'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickFile(SendMessageType.image);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.insert_drive_file),
-              title: const Text('Document'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickFile(SendMessageType.document);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _pickFile(SendMessageType type) async {
-    if (widget.onAttachment == null) return;
-
+  Future<void> _showAttachmentOptions() async {
+    if (_attachmentOpen || widget.isSending || widget.onAttachment == null) {
+      return;
+    }
+    _attachmentOpen = true;
     try {
-      final fileType = type == SendMessageType.image ? FileType.image : FileType.any;
-      final result = await FilePicker.platform.pickFiles(type: fileType);
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
-        if (file.path != null) {
-          widget.onAttachment!(file.path!, file.name, type);
-        }
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [
+          'jpg',
+          'jpeg',
+          'png',
+          'gif',
+          'webp',
+          'mp4',
+          'mov',
+          'webm',
+          'mp3',
+          'm4a',
+          'wav',
+          'ogg',
+          'pdf',
+          'txt',
+        ],
+      );
+      if (!mounted || result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      if (file.size > 10 * 1024 * 1024) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(
+            content: Text(
+              SupportStrings(widget.locale).text(
+                'File is too large. Maximum size is 10 MB.',
+                'الملف كبير جداً. الحد الأقصى 10 ميجابايت.',
+              ),
+            ),
+          ),
+        );
+        return;
       }
-    } catch (e) {
-      // Handle error silently
+      if (file.path != null) setState(() => _pendingFile = file);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(
+            content: Text(
+              SupportStrings(widget.locale).text(
+                'Unable to select file. Please try again.',
+                'تعذر اختيار الملف. يرجى المحاولة مرة أخرى.',
+              ),
+            ),
+          ),
+        );
+      }
+    } finally {
+      _attachmentOpen = false;
     }
   }
+
+  void _removeFile() => setState(() => _pendingFile = null);
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // Input area
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            border: Border(
-              top: BorderSide(color: Colors.grey.shade200),
+        if (_pendingFile != null)
+          ListTile(
+            leading: const Icon(Icons.insert_drive_file_outlined),
+            title: Text(
+              _pendingFile!.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: IconButton(
+              onPressed: _removeFile,
+              tooltip: SupportStrings(widget.locale).close,
+              icon: const Icon(Icons.close, size: 18),
             ),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // Emoji button
-              _buildIconButton(
-                icon: _showEmojiPicker
-                    ? Icons.keyboard
-                    : Icons.emoji_emotions_outlined,
-                onTap: _toggleEmojiPicker,
-              ),
-
-              // Attachment button
-              if (widget.onAttachment != null)
-                _buildIconButton(
-                  icon: Icons.attach_file,
-                  onTap: _showAttachmentOptions,
-                ),
-
-              const SizedBox(width: 8),
-
-              // Text field
-              Expanded(
-                child: Container(
-                  constraints: const BoxConstraints(maxHeight: 120),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.grey.shade300),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: SupportStyle.border)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (widget.onAttachment != null)
+                  _buildIconButton(
+                    icon: Icons.add,
+                    onTap: _showAttachmentOptions,
+                    tooltip: SupportStrings(widget.locale).attach,
                   ),
+                _buildIconButton(
+                  icon: _showEmojiPicker
+                      ? Icons.keyboard
+                      : Icons.emoji_emotions_outlined,
+                  onTap: _toggleEmojiPicker,
+                  tooltip: SupportStrings(
+                    widget.locale,
+                  ).text('Emoji', 'إيموجي'),
+                ),
+                Expanded(
                   child: TextField(
                     controller: _controller,
                     focusNode: _focusNode,
-                    maxLines: 4,
                     minLines: 1,
+                    maxLines: 4,
+                    style: SupportInputStyle.text,
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _onSend(),
-                    onTap: () {
-                      if (_showEmojiPicker) {
-                        setState(() => _showEmojiPicker = false);
-                      }
-                    },
-                    decoration: const InputDecoration(
-                      hintText: 'Type a message...',
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
+                    onTap: _hideEmojiPicker,
+                    decoration: SupportInputStyle.decoration(
+                      primaryColor: widget.primaryColor,
+                      hintText: SupportStrings(widget.locale).messageHint,
                     ),
                   ),
                 ),
-              ),
-
-              const SizedBox(width: 8),
-
-              // Send button
-              _buildSendButton(),
-            ],
+                const SizedBox(width: 8),
+                _buildSendButton(),
+              ],
+            ),
           ),
         ),
 
@@ -206,10 +236,12 @@ class _MessageInputState extends State<MessageInput> {
         if (_showEmojiPicker)
           SizedBox(
             height: 250,
-            child: EmojiPicker(
-              onEmojiSelected: _onEmojiSelected,
+            child: BeonEmojiPicker(
+              textEditingController: _controller,
               config: Config(
                 height: 250,
+                emojiSet: BeonEmojiPolicy.emojiSet,
+                locale: Locale(widget.locale.split(RegExp('[ _-]')).first),
                 checkPlatformCompatibility: true,
                 emojiViewConfig: EmojiViewConfig(
                   columns: 7,
@@ -237,23 +269,27 @@ class _MessageInputState extends State<MessageInput> {
     );
   }
 
+  void _hideEmojiPicker() {
+    if (_showEmojiPicker) setState(() => _showEmojiPicker = false);
+  }
+
   Widget _buildIconButton({
     required IconData icon,
     required VoidCallback onTap,
+    required String tooltip,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          width: 36,
-          height: 36,
-          alignment: Alignment.center,
-          child: Icon(
-            icon,
-            color: Colors.grey.shade600,
-            size: 22,
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            width: 32,
+            height: 36,
+            alignment: Alignment.center,
+            child: Icon(icon, color: SupportStyle.muted, size: 18),
           ),
         ),
       ),
@@ -261,32 +297,36 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   Widget _buildSendButton() {
-    final canSend = _hasText && !widget.isSending;
+    final canSend = (_hasText || _pendingFile != null) && !widget.isSending;
 
-    return Material(
-      color: canSend ? widget.primaryColor : Colors.grey.shade300,
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: canSend ? _onSend : null,
-        customBorder: const CircleBorder(),
-        child: Container(
-          width: 40,
-          height: 40,
-          alignment: Alignment.center,
-          child: widget.isSending
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
+    return Tooltip(
+      message: SupportStrings(widget.locale).send,
+      child: Material(
+        color: canSend ? widget.primaryColor : Colors.white,
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: canSend ? _onSend : null,
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            child: widget.isSending
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Icon(
+                    Icons.send_outlined,
+                    color: canSend ? Colors.white : SupportStyle.muted,
+                    size: 16,
+                    textDirection: Directionality.of(context),
                   ),
-                )
-              : const Icon(
-                  Icons.send,
-                  color: Colors.white,
-                  size: 20,
-                ),
+          ),
         ),
       ),
     );

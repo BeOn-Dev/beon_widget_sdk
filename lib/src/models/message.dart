@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../utils/app_functions/app_functions.dart';
@@ -5,14 +6,7 @@ import '../utils/app_functions/app_functions.dart';
 /// Type of message content
 
 /// Status of a sent message
-enum MessageStatus {
-  sending,
-  sent,
-  delivered,
-  read,
-  failed,
-  unread,
-}
+enum MessageStatus { sending, sent, delivered, read, failed, unread }
 
 /// Reaction/emoji on a message
 @immutable
@@ -23,18 +17,15 @@ class MessageReaction {
   const MessageReaction({this.id, this.emoji});
 
   factory MessageReaction.fromJson(Map<String, dynamic> json) {
-    return MessageReaction(
-      id: json['id'],
-      emoji: json['emoji'],
-    );
+    return MessageReaction(id: json['id'], emoji: json['emoji']);
   }
 
-  Map<String, dynamic> toJson() =>
-      {
-        if (id != null) 'id': id,
-        if (emoji != null) 'emoji': emoji,
-      };
+  Map<String, dynamic> toJson() => {
+    if (id != null) 'id': id,
+    if (emoji != null) 'emoji': emoji,
+  };
 }
+
 enum SendMessageType {
   text,
   audio,
@@ -45,17 +36,18 @@ enum SendMessageType {
   location,
   info,
   sticker,
-  stored_document
+  stored_document,
+  interactive,
 }
-enum MessageType {
-  myMessage,
-  clientMessage,
-}
+
+enum MessageType { myMessage, clientMessage }
 
 /// Represents a chat message
 @immutable
 class Message {
   final int? id;
+  final String? serverId;
+  final bool isPrivate;
   final String? uId;
   final int? conversationId;
   final String? body;
@@ -78,6 +70,8 @@ class Message {
 
   const Message({
     this.id,
+    this.serverId,
+    this.isPrivate = false,
     this.body,
     this.status,
     this.type,
@@ -104,7 +98,9 @@ class Message {
     // BUT don't sanitize URLs (audio/video/image/document) as it corrupts them
     String? parsedBody;
     if (json['body'] != null) {
-      final bodyStr = json['body'].toString();
+      final bodyStr = json['body'] is Map
+          ? jsonEncode(json['body'])
+          : json['body'].toString();
       // Check if it's a URL - don't sanitize URLs
       if (bodyStr.startsWith('http://') || bodyStr.startsWith('https://')) {
         parsedBody = bodyStr; // Keep URL intact
@@ -114,12 +110,32 @@ class Message {
     }
 
     return Message(
-      id: json['id'],
+      id: int.tryParse('${json['id'] ?? ''}'),
+      serverId: json['id']?.toString(),
+      isPrivate:
+          json['private'] == true ||
+          json['is_note'] == true ||
+          [
+            'note',
+            'internal_note',
+            'info',
+            'system_info',
+          ].contains(json['type']) ||
+          [
+            'note',
+            'internal_note',
+            'info',
+            'system_info',
+          ].contains(json['message_type']),
+      localPath: json['local_path']?.toString(),
       uId: json['uid']?.toString(),
-      body: parsedBody,
+      body:
+          parsedBody ??
+          json['content']?.toString() ??
+          json['message']?.toString(),
       status: json['status']?.toString(),
       conversationId: json['conversation_id'] != null
-          ? int.parse(json['conversation_id'].toString())
+          ? int.tryParse(json['conversation_id'].toString())
           : null,
       type: json['type'] != null
           ? AppFunctions.getSendMessageType(type: json['type'])
@@ -138,26 +154,68 @@ class Message {
       latitude: json['lat'] != null
           ? double.tryParse(json['lat'].toString())
           : null,
-      messageStatus: json['status'] != null
-          ? AppFunctions.getMessageStatus(status: json['status'])
+      messageStatus:
+          ((json['read_status'] == 'read'
+                  ? 'read'
+                  : json['delivery_status'] ??
+                        json['message_status'] ??
+                        json['status'])) !=
+              null
+          ? AppFunctions.getMessageStatus(
+              status:
+                  '${(json['read_status'] == 'read' ? 'read' : json['delivery_status'] ?? json['message_status'] ?? json['status'])}',
+            )
           : null,
       react: json['react'] != null ? ReactModel.fromJson(json['react']) : null,
       replay: json['replay'] != null ? Message.fromJson(json['replay']) : null,
     );
   }
 
+  Message copyWith({
+    int? id,
+    String? serverId,
+    MessageStatus? messageStatus,
+    bool? isSendingError,
+    int? conversationId,
+  }) => Message(
+    id: id ?? this.id,
+    serverId: serverId ?? this.serverId,
+    body: body,
+    uId: uId,
+    conversationId: conversationId ?? this.conversationId,
+    localPath: localPath,
+    status: status,
+    type: type,
+    messageType: messageType,
+    messageId: messageId,
+    createdAt: createdAt,
+    channelId: channelId,
+    agentName: agentName,
+    messageStatus: messageStatus ?? this.messageStatus,
+    react: react,
+    longitude: longitude,
+    latitude: latitude,
+    replay: replay,
+    documentFileType: documentFileType,
+    isSendingError: isSendingError ?? this.isSendingError,
+    libraryModel: libraryModel,
+    isPrivate: isPrivate,
+  );
 
   /// Convert to JSON
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is Message && other.id == id;
+    return other is Message &&
+        (serverId != null && other.serverId != null
+            ? serverId == other.serverId
+            : id != null && other.id == id);
   }
 
   @override
-  int get hashCode => id.hashCode;
-
+  int get hashCode =>
+      id?.hashCode ?? serverId?.hashCode ?? identityHashCode(this);
 }
 
 /// Response metadata for paginated messages
@@ -178,9 +236,9 @@ class MessagesMeta {
   factory MessagesMeta.fromJson(Map<String, dynamic> json) {
     return MessagesMeta(
       currentPage: int.tryParse(json['current_page']?.toString() ?? '1') ?? 1,
-      total: json['total'] ?? 0,
-      lastPage: json['last_page'] ?? 1,
-      perPage: json['per_page'] ?? 10,
+      total: int.tryParse('${json['total'] ?? 0}') ?? 0,
+      lastPage: int.tryParse('${json['last_page'] ?? 1}') ?? 1,
+      perPage: int.tryParse('${json['per_page'] ?? 10}') ?? 10,
     );
   }
 }
@@ -200,12 +258,15 @@ class MessagesResponse {
 
   factory MessagesResponse.fromJson(Map<String, dynamic> json) {
     final data = json['data'] ?? json;
-    final records = data['records'] ?? data['messages'] ?? [];
-
+    final records = data is List
+        ? data
+        : data['records'] ?? data['messages'] ?? [];
 
     // Extract conversation ID from data.conversation.id
-    int? convId;
-    if (data['conversation'] != null) {
+    int? convId = data is Map
+        ? int.tryParse('${data['conversation_id'] ?? ''}')
+        : null;
+    if (data is Map && data['conversation'] != null) {
       final conv = data['conversation'];
       if (conv is Map) {
         convId = conv['id'] is int
@@ -215,15 +276,16 @@ class MessagesResponse {
     }
 
     return MessagesResponse(
-      meta: MessagesMeta.fromJson(data['meta'] ?? {}),
+      meta: MessagesMeta.fromJson(
+        data is Map ? data['meta'] ?? json['meta'] ?? {} : json['meta'] ?? {},
+      ),
       messages: ((records as List)
           .map((record) => Message.fromJson(record))
-          .toList()).toSet().toList(),
+          .toList()),
       conversationId: convId,
     );
   }
 }
-
 
 class ReactModel {
   int? id;
@@ -239,16 +301,12 @@ class ReactModel {
         : null;
   }
 
-  List<Object> get props => [
-    id??0,
-    emoji??"",
-  ];
-
+  List<Object> get props => [id ?? 0, emoji ?? ""];
 }
 
-
 enum DocumentFileType { pdf, word, excel, etc }
-class LibraryModel  {
+
+class LibraryModel {
   int? id;
   String? name;
   String? description;
@@ -298,7 +356,7 @@ class LibraryModel  {
     "file_id": id,
     "conversation_id": conversationId,
     if (replyMessage != null)
-      "replay": {"body": replyMessage?.body, "replay_id": replyMessage?.id}
+      "replay": {"body": replyMessage?.body, "replay_id": replyMessage?.id},
   };
 
   List<Object?> get props => [
